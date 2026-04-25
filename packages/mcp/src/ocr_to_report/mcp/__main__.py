@@ -1,11 +1,18 @@
-"""`python -m ocr_to_report.mcp` entrypoint.
+"""``python -m ocr_to_report.mcp`` / ``ocr-to-report-mcp`` entrypoint.
 
-Phase 0: no-op. Phase 9 wires up the FastMCP server.
+Boots the MCP server over stdio (the transport an MCP client like
+Claude Desktop launches the process with). The actual tool wiring
+lives in :mod:`ocr_to_report.mcp.server`.
 """
+
+from __future__ import annotations
+
+from ocr_to_report.mcp.server import build_server
 
 
 def main() -> None:
-    raise SystemExit("MCP server not yet implemented (Phase 9).")
+    server = build_server()
+    server.run()
 
 
 if __name__ == "__main__":

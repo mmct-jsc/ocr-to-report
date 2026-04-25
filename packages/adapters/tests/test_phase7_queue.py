@@ -144,10 +144,13 @@ async def test_fifo_order_preserved() -> None:
 @pytest.mark.asyncio
 async def test_delay_seconds_holds_until_due() -> None:
     q = InMemoryQueue()
-    await q.enqueue(TaskKind.TRANSCRIPT_JOB, {"k": "delayed"}, delay_seconds=0.15)
+    await q.enqueue(TaskKind.TRANSCRIPT_JOB, {"k": "delayed"}, delay_seconds=0.3)
 
+    # Hidden during the delay window (use a tight bound so we don't
+    # straddle the visibility transition under loaded CI machines).
     assert await q.lease(timeout_seconds=0.05) is None
 
-    delivered = await q.lease(timeout_seconds=1.0)
+    # Generous timeout so even a slow scheduler delivers it.
+    delivered = await q.lease(timeout_seconds=2.0)
     assert delivered is not None
     assert delivered.payload["k"] == "delayed"
