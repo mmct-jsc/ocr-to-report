@@ -18,6 +18,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from ocr_to_report.cli.bootstrap import app as bootstrap_app
 from ocr_to_report.sdk_py import Client, SDKError
 
 app = typer.Typer(
@@ -31,6 +32,7 @@ jobs_app = typer.Typer(name="jobs", help="Inspect, approve, reject, fetch jobs."
 webhooks_app = typer.Typer(name="webhooks", help="Manage webhook subscriptions.")
 app.add_typer(jobs_app, name="jobs")
 app.add_typer(webhooks_app, name="webhooks")
+app.add_typer(bootstrap_app, name="bootstrap")
 
 _console = Console()
 _err_console = Console(stderr=True, style="red")

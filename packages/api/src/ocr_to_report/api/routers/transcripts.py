@@ -49,9 +49,9 @@ from ocr_to_report.api.schemas import (
 from ocr_to_report.core.errors.domain import (
     ConflictError,
     ForbiddenError,
+    OcrToReportError,
     PayloadTooLargeError,
     ValidationError,
-    VisionProviderError,
 )
 from ocr_to_report.core.mapping import canonical_to_render_data, extract_to_canonical
 from ocr_to_report.core.pipeline.protocol import StepStatus
@@ -239,11 +239,16 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
             resource_id=str(job.id),
             metadata={"provider": result.provider.value, "model": result.model_id},
         )
-    except (ValidationError, VisionProviderError) as e:
+    except OcrToReportError as e:
+        # Mark the job failed and commit so the row reflects reality
+        # before the outer dependency's rollback fires (otherwise the
+        # 503 returns to the user but the DB has no trace of the job).
         await repos.jobs.mark_failed(job.id, error_detail=e.detail or str(e))
+        await repos.session.commit()
         raise
     except Exception as e:
         await repos.jobs.mark_failed(job.id, error_detail=f"{type(e).__name__}: {e}")
+        await repos.session.commit()
         raise
 
     refreshed = await repos.jobs.get(job.id)

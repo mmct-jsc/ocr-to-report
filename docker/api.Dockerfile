@@ -59,9 +59,12 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Copy venv + source from builder
+# Copy the venv + the workspace source. The venv was built with editable
+# installs whose .pth files point at /build/packages/.../src — keep that
+# path stable in the runtime stage so the imports resolve. /build is
+# never written to at runtime (the rootfs is read-only in compose).
 COPY --from=builder /build/.venv /app/.venv
-COPY --from=builder /build/packages /app/packages
+COPY --from=builder /build/packages /build/packages
 
 # Profiles, targets, pipelines, sla-tiers — read at runtime
 COPY profiles/   /app/profiles/

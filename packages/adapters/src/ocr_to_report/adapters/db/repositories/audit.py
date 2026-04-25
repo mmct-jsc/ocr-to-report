@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import desc, select
+from sqlalchemy import select
 
 from ocr_to_report.adapters.audit import (
     AuditEntry,
@@ -90,29 +90,72 @@ class AuditRepo:
         return row
 
     async def _latest_row_hash(self, tenant_id: uuid.UUID) -> str:
-        result = await self._session.execute(
-            select(AuditLog.row_hash)
-            .where(AuditLog.tenant_id == tenant_id)
-            .order_by(desc(AuditLog.ts), desc(AuditLog.id))
-            .limit(1)
-        )
-        latest = result.scalar_one_or_none()
-        return latest or GENESIS_HASH
+        """Find the chain tail by walking ``prev_hash`` linkage.
+
+        Timestamp ordering alone isn't enough — two rows can share a
+        microsecond on a fast loop, and our PK is a random UUID — so
+        we recover insertion order from the hash chain itself: the
+        tail is the row whose ``row_hash`` is no other row's
+        ``prev_hash``.
+        """
+        rows = await self._all_rows(tenant_id)
+        if not rows:
+            return GENESIS_HASH
+        prev_hashes = {row.prev_hash for row in rows}
+        for row in rows:
+            if row.row_hash not in prev_hashes:
+                return row.row_hash
+        # Cycle detected (shouldn't happen for a well-formed chain) —
+        # fall back to the latest by timestamp so we can still append.
+        rows.sort(key=lambda r: (r.ts, str(r.id)))
+        return rows[-1].row_hash
 
     async def verify_for_tenant(self, tenant_id: uuid.UUID) -> int:
-        """Walk the chain in chronological order; raise on break.
+        """Walk the chain in linkage order; raise on break.
 
         Returns the number of entries verified.
         """
-        result = await self._session.execute(
-            select(AuditLog)
-            .where(AuditLog.tenant_id == tenant_id)
-            .order_by(AuditLog.ts, AuditLog.id)
-        )
-        rows = list(result.scalars().all())
-        entries = [_row_to_entry(r) for r in rows]
+        rows = await self._all_rows(tenant_id)
+        if not rows:
+            return 0
+        ordered = _order_by_chain(rows)
+        entries = [_row_to_entry(r) for r in ordered]
         verify_chain(entries)
         return len(entries)
+
+    async def _all_rows(self, tenant_id: uuid.UUID) -> list[AuditLog]:
+        result = await self._session.execute(
+            select(AuditLog).where(AuditLog.tenant_id == tenant_id)
+        )
+        return list(result.scalars().all())
+
+
+def _order_by_chain(rows: list[AuditLog]) -> list[AuditLog]:
+    """Order rows by walking ``prev_hash`` → ``row_hash`` linkage.
+
+    Robust to ties on ``ts`` (random UUID PKs would otherwise scramble
+    same-microsecond inserts and break the chain). The first row is
+    whichever has ``prev_hash == GENESIS_HASH``; each subsequent row
+    is the one whose ``prev_hash`` is the previous row's ``row_hash``.
+
+    Raises through ``verify_chain`` if the linkage doesn't form a
+    single connected path — that's a tampering/corruption signal.
+    """
+    by_prev: dict[str, AuditLog] = {row.prev_hash: row for row in rows}
+    head = by_prev.get(GENESIS_HASH)
+    if head is None:
+        # No genesis entry — fall back to (ts, id) ordering so the
+        # verifier raises a clear chain-break error.
+        return sorted(rows, key=lambda r: (r.ts, str(r.id)))
+    chain: list[AuditLog] = [head]
+    current = head
+    while True:
+        nxt = next((row for row in rows if row.prev_hash == current.row_hash), None)
+        if nxt is None:
+            break
+        chain.append(nxt)
+        current = nxt
+    return chain
 
 
 def _row_to_entry(row: AuditLog) -> AuditEntry:

@@ -19,12 +19,47 @@ services:
     environment:
       OCR2R_DATABASE_URL: postgresql+asyncpg://ocr2r:ocr2r@postgres:5432/ocr2r
       OCR2R_REDIS_URL: redis://redis:6379/0
+      OCR2R_BLOB_BACKEND: s3
       OCR2R_BLOB_ENDPOINT_URL: http://minio:9000
       OCR2R_BLOB_ACCESS_KEY: minioadmin
       OCR2R_BLOB_SECRET_KEY: minioadmin
       OCR2R_BLOB_BUCKET: ocr2r
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=128M
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+        BUILD_TIME: ${BUILD_TIME:-dev}
+    image: ocr2r-worker:dev
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OCR2R_DATABASE_URL: postgresql+asyncpg://ocr2r:ocr2r@postgres:5432/ocr2r
+      OCR2R_REDIS_URL: redis://redis:6379/0
+      OCR2R_BLOB_BACKEND: s3
+      OCR2R_BLOB_ENDPOINT_URL: http://minio:9000
+      OCR2R_BLOB_ACCESS_KEY: minioadmin
+      OCR2R_BLOB_SECRET_KEY: minioadmin
+      OCR2R_BLOB_BUCKET: ocr2r
     depends_on:
       postgres:
         condition: service_healthy

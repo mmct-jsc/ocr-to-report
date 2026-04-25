@@ -1,8 +1,9 @@
 """Stub adapters for OpenAI / Google / Tesseract.
 
 Each implements the :class:`VisionAdapter` protocol so the router can
-select among them, but ``extract()`` raises :class:`NotImplementedError`
-with a clear message until the body lands in v1.1.
+select among them, but ``extract()`` raises
+:class:`ProviderNotConfiguredError` (HTTP 503) with a clear message
+until the body lands in v1.1.
 
 This is deliberate: the protocol contract is locked in MVP. Migrating
 from the stub to the real implementation requires zero call-site changes.
@@ -16,6 +17,7 @@ from ocr_to_report.adapters.vision.protocol import (
     VisionProvider,
     VisionRequest,
 )
+from ocr_to_report.core.errors.domain import ProviderNotConfiguredError
 
 
 class _NotImplementedAdapter(VisionAdapter):
@@ -30,10 +32,11 @@ class _NotImplementedAdapter(VisionAdapter):
         return
 
     async def extract(self, request: VisionRequest) -> ExtractionResult:
-        raise NotImplementedError(
+        raise ProviderNotConfiguredError(
             f"{self._human_name} vision adapter is scaffolded but not yet "
-            "implemented. Set vision.provider in tenant config to "
-            "'anthropic' to use Claude, or wait for v1.1.",
+            "implemented. Set ANTHROPIC_API_KEY to use Claude, or wait "
+            "for v1.1.",
+            provider=self.name.value,
         )
 
     async def aclose(self) -> None:

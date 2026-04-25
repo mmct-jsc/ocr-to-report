@@ -44,8 +44,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
+# The venv was built with editable installs whose .pth files point at
+# /build/packages/.../src — keep that path stable in the runtime stage.
 COPY --from=builder /build/.venv /app/.venv
-COPY --from=builder /build/packages /app/packages
+COPY --from=builder /build/packages /build/packages
 COPY profiles/   /app/profiles/
 COPY targets/    /app/targets/
 COPY pipelines/  /app/pipelines/

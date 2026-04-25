@@ -141,6 +141,20 @@ class VisionProviderError(DependencyError):
     title = "Vision provider error"
 
 
+class ProviderNotConfiguredError(OcrToReportError):
+    """No vision provider with a real implementation is configured.
+
+    Surfaces when the only adapter installed is one of the scaffolded
+    stubs (e.g., when ``ANTHROPIC_API_KEY`` is unset in dev). Status
+    503 so callers know to wait + retry rather than re-shape the
+    request.
+    """
+
+    status = 503
+    type_uri = "https://errors.ocr-to-report/provider-not-configured"
+    title = "No vision provider configured"
+
+
 class StorageError(DependencyError):
     type_uri = "https://errors.ocr-to-report/storage-error"
     title = "Storage backend error"
@@ -176,6 +190,7 @@ __all__ = [
     "PipelineNotFoundError",
     "ProfileFingerprintMismatchError",
     "ProfileNotFoundError",
+    "ProviderNotConfiguredError",
     "StorageError",
     "TargetNotFoundError",
     "TemplateNotFoundError",

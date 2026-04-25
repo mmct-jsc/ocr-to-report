@@ -63,8 +63,17 @@ class ApiKeyRepo:
         Strategy: filter by prefix (cheap index lookup), then verify
         Argon2id over the candidates. Argon2id is intentionally slow,
         so narrowing by prefix first matters.
+
+        Returns ``None`` for any malformed input — the caller treats
+        ``None`` as 401, which is the correct response to a bad key
+        regardless of *why* it's bad.
         """
-        prefix = api_key_prefix(presented_key)
+        from ocr_to_report.adapters.crypto.api_keys import ApiKeyError  # noqa: PLC0415
+
+        try:
+            prefix = api_key_prefix(presented_key)
+        except ApiKeyError:
+            return None
         rows = (
             (
                 await self._session.execute(
