@@ -1,0 +1,18 @@
+id: batch_economy_v1
+description: |
+  Async-only economy lane. Uses the Anthropic Batch API path (50%
+  cheaper) and Haiku without fallback. Aimed at non-urgent bulk
+  ingestion (e.g., admission-season backlogs).
+
+steps:
+  - id: preprocess
+  - id: detect_profile
+  - id: extract
+    config:
+      provider_policy: batch_only
+  - id: translate
+  - id: validate
+  - id: map
+  - id: render
+  - id: persist
+  - id: notify_webhook

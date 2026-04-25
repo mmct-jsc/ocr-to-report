@@ -1,0 +1,26 @@
+id: with_manual_review_v1
+description: |
+  Identical to default_v1 except low-confidence extractions park for
+  human review before render. Resume the pipeline after a reviewer
+  approves via the API.
+
+steps:
+  - id: preprocess
+  - id: detect_profile
+  - id: extract
+    config:
+      provider_policy: adaptive
+      confidence_threshold: 0.95
+  - id: translate
+  - id: validate
+  - id: quality_gate
+    config:
+      threshold: 0.95
+      on_below: park_for_review
+  - id: human_review
+    config:
+      skip_if_passed_quality_gate: true
+  - id: map
+  - id: render
+  - id: persist
+  - id: notify_webhook

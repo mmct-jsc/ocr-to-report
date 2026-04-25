@@ -359,9 +359,7 @@ def _extract_text(message: Message) -> str:
     """Concatenate every text block in the response."""
     from anthropic.types import TextBlock  # noqa: PLC0415
 
-    parts: list[str] = [
-        block.text for block in message.content if isinstance(block, TextBlock)
-    ]
+    parts: list[str] = [block.text for block in message.content if isinstance(block, TextBlock)]
     if not parts:
         raise VisionProviderError(
             "Anthropic response contained no text blocks",

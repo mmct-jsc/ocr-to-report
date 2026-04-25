@@ -100,11 +100,7 @@ def preprocess(blob: bytes, config: PreprocessConfig | None = None) -> list[byte
         )
 
     media_type = detect_media_type(blob)
-    images = (
-        _pdf_to_images(blob, cfg)
-        if media_type == "application/pdf"
-        else [_load_image(blob)]
-    )
+    images = _pdf_to_images(blob, cfg) if media_type == "application/pdf" else [_load_image(blob)]
 
     if len(images) > cfg.max_pages:
         raise PayloadTooLargeError(

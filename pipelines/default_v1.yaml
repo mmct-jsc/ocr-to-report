@@ -1,0 +1,19 @@
+id: default_v1
+description: |
+  Sync extract -> translate -> render -> notify (no human review).
+  The default pipeline for the Standard SLA tier. Manual review is
+  available via with_manual_review_v1.yaml when the tenant opts in.
+
+steps:
+  - id: preprocess
+  - id: detect_profile
+  - id: extract
+    config:
+      provider_policy: adaptive
+      confidence_threshold: 0.85
+  - id: translate
+  - id: validate
+  - id: map
+  - id: render
+  - id: persist
+  - id: notify_webhook
