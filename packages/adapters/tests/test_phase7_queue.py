@@ -81,12 +81,15 @@ async def test_nack_with_delay_makes_task_invisible_until_due() -> None:
     await q.enqueue(TaskKind.TRANSCRIPT_JOB, {"x": 1})
     leased = await q.lease(timeout_seconds=1.0)
     assert leased is not None
-    await q.nack(leased, retry_in_seconds=0.3)
+    await q.nack(leased, retry_in_seconds=0.5)
 
     # Tight bound — must still be hidden during the delay window.
     assert await q.lease(timeout_seconds=0.05) is None
 
-    # Generous timeout to absorb scheduler jitter.
+    # Sleep past the delay so the call_later callback has fired before
+    # we lease — avoids race with Windows-coarse timer resolution.
+    await asyncio.sleep(0.6)
+
     redelivered = await q.lease(timeout_seconds=2.0)
     assert redelivered is not None
     assert redelivered.attempts == 1

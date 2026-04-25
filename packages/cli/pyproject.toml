@@ -1,6 +1,6 @@
 [project]
 name = "ocr-to-report-cli"
-version = "0.1.0-dev"
+version = "0.1.0"
 description = "OCR-to-Report — Typer CLI"
 requires-python = ">=3.12"
 readme = "README.md"

@@ -1,6 +1,6 @@
 [project]
 name = "ocr-to-report-mcp"
-version = "0.1.0-dev"
+version = "0.1.0"
 description = "OCR-to-Report — MCP server (Model Context Protocol)"
 requires-python = ">=3.12"
 readme = "README.md"

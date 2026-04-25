@@ -14,6 +14,7 @@ from ocr_to_report.api.errors import install_exception_handlers
 from ocr_to_report.api.metrics import install_metrics
 from ocr_to_report.api.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
 from ocr_to_report.api.routers import (
+    dsr_router,
     jobs_router,
     templates_router,
     transcripts_router,
@@ -75,6 +76,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     app.include_router(webhooks_router)
     app.include_router(usage_router)
     app.include_router(templates_router)
+    app.include_router(dsr_router)
 
     @app.get(f"{API_PREFIX}/health", tags=["system"])
     async def health() -> JSONResponse:

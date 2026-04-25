@@ -17,4 +17,4 @@ the source of truth for stability guarantees):
 """
 
 __all__: list[str] = []
-__version__ = "0.1.0-dev"
+__version__ = "0.1.0"

@@ -1,5 +1,11 @@
 """Request/response schemas."""
 
+from ocr_to_report.api.schemas.dsr import (
+    DSRAccessResponse,
+    DSRErasureRequest,
+    DSRErasureResponse,
+    DSRPortabilityResponse,
+)
 from ocr_to_report.api.schemas.transcripts import (
     BatchAcceptedResponse,
     TranscriptExtractionResponse,
@@ -14,6 +20,10 @@ from ocr_to_report.api.schemas.webhooks import (
 
 __all__ = [
     "BatchAcceptedResponse",
+    "DSRAccessResponse",
+    "DSRErasureRequest",
+    "DSRErasureResponse",
+    "DSRPortabilityResponse",
     "TranscriptExtractionResponse",
     "TranscriptJobSummary",
     "UsageResponse",

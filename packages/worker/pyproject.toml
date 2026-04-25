@@ -1,6 +1,6 @@
 [project]
 name = "ocr-to-report-worker"
-version = "0.1.0-dev"
+version = "0.1.0"
 description = "OCR-to-Report — async worker (queue consumer + batch + retention)"
 requires-python = ">=3.12"
 readme = "README.md"

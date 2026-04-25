@@ -62,7 +62,7 @@ def install_tracing(app: FastAPI, settings: Settings) -> None:
     resource = Resource.create(
         {
             "service.name": "ocr-to-report-api",
-            "service.version": "0.1.0-dev",
+            "service.version": "0.1.0",
             "deployment.environment": settings.env,
         }
     )

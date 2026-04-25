@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ocr_to_report.adapters.db.models import Transcript
 
@@ -98,6 +98,34 @@ class TranscriptRepo:
         result = await self._session.execute(stmt)
         rowcount = getattr(result, "rowcount", 0)
         return int(rowcount or 0)
+
+    async def list_for_tenant(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        dek: bytes,
+    ) -> list[dict[str, Any]]:
+        """Decrypt + return every transcript snapshot for the tenant.
+
+        Used by the GDPR DSR access/portability endpoints. The caller
+        is responsible for filtering by data-subject identity (we do
+        the decryption here so the filter can match against PII fields
+        in the canonical payload).
+        """
+        from sqlalchemy import select  # noqa: PLC0415
+
+        result = await self._session.execute(
+            select(Transcript).where(Transcript.tenant_id == tenant_id)
+        )
+        out: list[dict[str, Any]] = []
+        for row in result.scalars().all():
+            plaintext = self._encryptor.decrypt(
+                row.canonical_encrypted,
+                dek,
+                associated_data=_aad(tenant_id, row.job_id),
+            )
+            out.append(dict(json.loads(plaintext)))
+        return out
 
 
 def _aad(tenant_id: uuid.UUID, job_id: uuid.UUID) -> bytes:

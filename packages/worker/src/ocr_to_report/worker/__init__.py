@@ -40,4 +40,4 @@ __all__ = [
     "handle_retention_sweep",
     "handle_transcript_job",
 ]
-__version__ = "0.1.0-dev"
+__version__ = "0.1.0"

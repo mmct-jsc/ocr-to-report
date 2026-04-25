@@ -21,4 +21,4 @@ Server URL defaults to ``OCR2R_BASE_URL`` (or ``http://localhost:8000``);
 from ocr_to_report.cli.app import app
 
 __all__ = ["app"]
-__version__ = "0.1.0-dev"
+__version__ = "0.1.0"

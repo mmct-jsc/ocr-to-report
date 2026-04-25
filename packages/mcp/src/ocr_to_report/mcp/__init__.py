@@ -15,4 +15,4 @@ is what an MCP-compatible client (Claude Desktop, etc.) launches.
 from ocr_to_report.mcp.server import build_server
 
 __all__ = ["build_server"]
-__version__ = "0.1.0-dev"
+__version__ = "0.1.0"

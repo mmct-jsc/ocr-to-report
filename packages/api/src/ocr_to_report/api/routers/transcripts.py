@@ -55,6 +55,7 @@ from ocr_to_report.core.errors.domain import (
 )
 from ocr_to_report.core.mapping import canonical_to_render_data, extract_to_canonical
 from ocr_to_report.core.pipeline.protocol import StepStatus
+from ocr_to_report.core.security import require_safe_upload
 from ocr_to_report.core.sla import TenantSlaConfig
 
 router = APIRouter(prefix="/v1", tags=["transcripts"])
@@ -91,10 +92,8 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
     output blob is fetched via ``GET /v1/jobs/{id}/result``.
     """
     blob = await file.read()
-    if len(blob) > state.settings.max_upload_bytes:
-        raise PayloadTooLargeError(
-            f"upload is {len(blob)} bytes; max is {state.settings.max_upload_bytes}",
-        )
+    # Magic-byte + size check (defense in depth against polyglot uploads).
+    require_safe_upload(blob, max_bytes=state.settings.max_upload_bytes)
 
     # SLA gate: economy tier rejects sync calls.
     sla = resolve_sla_for_tenant(state, repos.tenant)
@@ -312,22 +311,21 @@ async def create_transcript_batch(
     if len(files) > 100:
         raise ValidationError("at most 100 files per batch request")
 
-    # Validate sizes + persist input blobs *before* creating jobs so a
-    # rejected upload can't leave orphan rows.
+    # Validate sizes + magic bytes + persist input blobs *before* creating
+    # jobs so a rejected upload can't leave orphan rows.
     accepted_pairs: list[tuple[UploadFile, bytes]] = []
     rejected: list[str] = []
     for upload in files:
         blob = await upload.read()
-        if len(blob) > state.settings.max_upload_bytes:
-            rejected.append(
-                f"{upload.filename or '<unnamed>'}: "
-                f"upload is {len(blob)} bytes; max is {state.settings.max_upload_bytes}",
-            )
+        try:
+            require_safe_upload(blob, max_bytes=state.settings.max_upload_bytes)
+        except (PayloadTooLargeError, ValidationError) as e:
+            rejected.append(f"{upload.filename or '<unnamed>'}: {e.detail or e}")
             continue
         accepted_pairs.append((upload, blob))
 
     if not accepted_pairs:
-        raise PayloadTooLargeError("every uploaded file exceeded max_upload_bytes")
+        raise PayloadTooLargeError("every uploaded file was rejected (size or media type)")
 
     expires = datetime.now(tz=UTC) + timedelta(days=30)
     summaries: list[TranscriptJobSummary] = []
