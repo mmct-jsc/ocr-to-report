@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from ocr_to_report.adapters.db import dispose_engines
 from ocr_to_report.api.deps import build_app_state
 from ocr_to_report.api.errors import install_exception_handlers
+from ocr_to_report.api.metrics import install_metrics
 from ocr_to_report.api.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
 from ocr_to_report.api.routers import (
     jobs_router,
@@ -20,6 +21,7 @@ from ocr_to_report.api.routers import (
     webhooks_router,
 )
 from ocr_to_report.api.settings import Settings, load_settings
+from ocr_to_report.api.tracing import install_tracing
 from ocr_to_report.api.version import get_version_info
 
 if TYPE_CHECKING:
@@ -65,6 +67,8 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
     install_exception_handlers(app)
+    install_metrics(app, settings)
+    install_tracing(app, settings)
 
     app.include_router(transcripts_router)
     app.include_router(jobs_router)

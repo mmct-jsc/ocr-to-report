@@ -1,0 +1,128 @@
+# Prometheus SLO + operational alert rules for OCR-to-Report.
+#
+# SLOs (design plan §Decision 7):
+#   - Availability: 99.9% of /v1/* requests return non-5xx (Standard tier).
+#   - Latency:      p95 of /v1/transcripts (sync) ≤ 30s.
+#   - Confidence:   95% of completed extractions ≥ 0.85 confidence.
+#
+# Operational alarms cover provider circuit-breaker state, cost
+# per-tenant guard rails, and manual-review queue depth.
+
+groups:
+  - name: ocr2r-slos
+    interval: 30s
+    rules:
+
+      # ─── Availability SLO ────────────────────────────────
+      - alert: Ocr2rAvailabilityBudgetBurn
+        expr: |
+          (
+            sum(rate(ocr2r_http_errors_total{status=~"5.."}[5m]))
+            /
+            sum(rate(ocr2r_http_requests_total[5m]))
+          ) > (1 - 0.999)
+        for: 10m
+        labels:
+          severity: page
+          slo: availability
+        annotations:
+          summary: "5xx rate over the past 5m is burning the 99.9% availability budget"
+          description: |
+            Error budget burn-rate over 5m exceeds the threshold. Either roll
+            back the most recent deploy or open the runbook for the failing
+            route.
+
+      # ─── Latency SLO ─────────────────────────────────────
+      - alert: Ocr2rTranscriptsP95LatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(ocr2r_http_request_duration_seconds_bucket{route="/v1/transcripts"}[5m])
+            )
+          ) > 30
+        for: 10m
+        labels:
+          severity: page
+          slo: latency
+        annotations:
+          summary: "POST /v1/transcripts p95 > 30s"
+          description: |
+            Sync extract is too slow. Most likely causes: vision provider
+            slowdown, queue starvation upstream, or SLA tier configuration
+            drift (Standard expecting Haiku is hitting Sonnet too often).
+
+      # ─── Confidence SLO ──────────────────────────────────
+      - alert: Ocr2rConfidenceBudgetBurn
+        expr: |
+          (
+            sum(rate(ocr2r_vision_confidence_bucket{le="0.85"}[15m]))
+            /
+            sum(rate(ocr2r_vision_confidence_count[15m]))
+          ) > 0.05
+        for: 30m
+        labels:
+          severity: ticket
+          slo: extraction_quality
+        annotations:
+          summary: "More than 5% of extractions below 0.85 confidence over 15m"
+          description: |
+            Quality regression. Inspect recent profile/target bundle changes,
+            and the manual-review queue for parking patterns.
+
+  - name: ocr2r-operational
+    interval: 30s
+    rules:
+
+      # ─── Provider circuit ────────────────────────────────
+      - alert: Ocr2rVisionProviderCircuitOpen
+        expr: ocr2r_circuit_state >= 2
+        for: 2m
+        labels:
+          severity: page
+          subsystem: vision
+        annotations:
+          summary: "Vision provider {{ $labels.provider }} circuit is open"
+          description: |
+            Provider has tripped the circuit breaker. Failover should already
+            be picking up the next provider in the priority list; this alert
+            fires for visibility + post-incident root cause.
+
+      # ─── Manual-review queue ─────────────────────────────
+      - alert: Ocr2rManualReviewBacklog
+        expr: max by (tenant) (ocr2r_manual_reviews_pending) > 50
+        for: 30m
+        labels:
+          severity: ticket
+          subsystem: review
+        annotations:
+          summary: "Tenant {{ $labels.tenant }} has > 50 parked jobs awaiting review"
+
+      # ─── Webhook delivery success rate ───────────────────
+      - alert: Ocr2rWebhookDeliveryFailureRate
+        expr: |
+          (
+            sum by (event) (rate(ocr2r_webhook_deliveries_total{outcome="failed"}[10m]))
+            /
+            sum by (event) (rate(ocr2r_webhook_deliveries_total[10m]))
+          ) > 0.1
+        for: 15m
+        labels:
+          severity: ticket
+          subsystem: webhooks
+        annotations:
+          summary: "Webhook event {{ $labels.event }} failure rate > 10%"
+
+      # ─── Cost guard rail (cumulative) ────────────────────
+      - alert: Ocr2rDailyCostBudgetExceeded
+        expr: |
+          sum(increase(ocr2r_vision_usd_cost_total[24h])) > 100
+        for: 0m
+        labels:
+          severity: page
+          subsystem: cost
+        annotations:
+          summary: "Vision spend > $100 in the last 24h"
+          description: |
+            Cost guard rail tripped. Review per-tenant token usage and the
+            adaptive policy's fallback rate.

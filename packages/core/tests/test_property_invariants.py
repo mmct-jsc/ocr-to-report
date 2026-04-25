@@ -173,15 +173,17 @@ def test_overall_confidence_must_be_at_most_min_child(
     )
     assert t.overall_confidence == floor
 
-    # Construction strictly above the floor should fail (when there is
-    # headroom — i.e., floor is not 1.0).
-    if floor < 1.0:
+    # Construction strictly above the floor should fail when there is
+    # meaningful headroom. The validator allows a 1e-9 fuzz; only test
+    # rejection when above-floor exceeds that tolerance comfortably.
+    above_floor = min(floor + 0.5, 1.0)
+    if above_floor - floor > 1e-6:
         with pytest.raises(ValueError):
             CanonicalTranscript(
                 source_profile_id="pl.lo.swiadectwo_szkolne.v1",
                 student=student,
                 subjects=subjects,
-                overall_confidence=min(floor + 0.5, 1.0),
+                overall_confidence=above_floor,
             )
 
 

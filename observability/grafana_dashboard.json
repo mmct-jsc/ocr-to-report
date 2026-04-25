@@ -1,0 +1,162 @@
+{
+  "title": "OCR-to-Report — Operations",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": ["ocr-to-report", "ocr2r"],
+  "templating": {
+    "list": [
+      {
+        "name": "tenant",
+        "type": "query",
+        "label": "Tenant",
+        "datasource": "Prometheus",
+        "query": "label_values(ocr2r_transcripts_processed_total, tenant)",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate (golden signal)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(ocr2r_http_requests_total[1m]))",
+          "legendFormat": "{{ status }}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(ocr2r_http_errors_total[1m]))",
+          "legendFormat": "{{ status }}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p50 / p95 / p99 latency — POST /v1/transcripts",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 0, "y": 7, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(ocr2r_http_request_duration_seconds_bucket{route=\"/v1/transcripts\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(ocr2r_http_request_duration_seconds_bucket{route=\"/v1/transcripts\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(ocr2r_http_request_duration_seconds_bucket{route=\"/v1/transcripts\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Vision confidence distribution",
+      "type": "histogram",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 12, "y": 7, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(ocr2r_vision_confidence_bucket[5m]))"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Vision tokens (input/output)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (kind) (rate(ocr2r_vision_tokens_total[1m]))",
+          "legendFormat": "{{ kind }}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "USD cost (cumulative, current month)",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum(increase(ocr2r_vision_usd_cost_total[30d]))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Manual review backlog (per tenant)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 0, "y": 21, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "ocr2r_manual_reviews_pending{tenant=~\"$tenant\"}",
+          "legendFormat": "{{ tenant }}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Pipeline step duration p95",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 12, "y": 21, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (step_id, le) (rate(ocr2r_pipeline_step_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{ step_id }}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Webhook delivery outcome",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 0, "y": 28, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(ocr2r_webhook_deliveries_total[5m]))",
+          "legendFormat": "{{ outcome }}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Cache hit rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "x": 12, "y": 28, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "sum by (cache) (rate(ocr2r_cache_hits_total[5m])) / (sum by (cache) (rate(ocr2r_cache_hits_total[5m])) + sum by (cache) (rate(ocr2r_cache_misses_total[5m])))",
+          "legendFormat": "{{ cache }}"
+        }
+      ]
+    }
+  ]
+}

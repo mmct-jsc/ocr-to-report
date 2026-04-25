@@ -81,11 +81,13 @@ async def test_nack_with_delay_makes_task_invisible_until_due() -> None:
     await q.enqueue(TaskKind.TRANSCRIPT_JOB, {"x": 1})
     leased = await q.lease(timeout_seconds=1.0)
     assert leased is not None
-    await q.nack(leased, retry_in_seconds=0.2)
+    await q.nack(leased, retry_in_seconds=0.3)
 
+    # Tight bound — must still be hidden during the delay window.
     assert await q.lease(timeout_seconds=0.05) is None
 
-    redelivered = await q.lease(timeout_seconds=1.0)
+    # Generous timeout to absorb scheduler jitter.
+    redelivered = await q.lease(timeout_seconds=2.0)
     assert redelivered is not None
     assert redelivered.attempts == 1
 
@@ -144,13 +146,17 @@ async def test_fifo_order_preserved() -> None:
 @pytest.mark.asyncio
 async def test_delay_seconds_holds_until_due() -> None:
     q = InMemoryQueue()
-    await q.enqueue(TaskKind.TRANSCRIPT_JOB, {"k": "delayed"}, delay_seconds=0.3)
+    await q.enqueue(TaskKind.TRANSCRIPT_JOB, {"k": "delayed"}, delay_seconds=0.5)
 
-    # Hidden during the delay window (use a tight bound so we don't
-    # straddle the visibility transition under loaded CI machines).
+    # Hidden during the delay window (tight bound to confirm hidden
+    # immediately, not after the delay expired).
     assert await q.lease(timeout_seconds=0.05) is None
 
-    # Generous timeout so even a slow scheduler delivers it.
+    # Sleep past the delay so the call_later callback has fired before
+    # we lease — this avoids a race on Windows where timer resolution
+    # is coarse.
+    await asyncio.sleep(0.6)
+
     delivered = await q.lease(timeout_seconds=2.0)
     assert delivered is not None
     assert delivered.payload["k"] == "delayed"
