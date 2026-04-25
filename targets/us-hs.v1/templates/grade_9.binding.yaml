@@ -1,0 +1,157 @@
+key: grade_9
+description: |
+  Cell bindings for the US-HS Grade 9 Excel template.
+  The template's static labels (column B, header row, legend table)
+  are pre-filled in grade_9.xlsx and not bound here.
+
+blob_path: grade_9.xlsx
+output_format: xlsx
+target_year_index: 9
+
+bindings:
+  # Header data
+  - cell: A2
+    kind: student.full_name
+
+  # Conduct row (row 3)
+  - cell: D3
+    kind: conduct.value
+
+  # Religion/Ethics row (row 4) — DEFAULT EXCLUDED via opt-in flag.
+  # The mapping engine returns null for D4 when religion_ethics is not
+  # populated; the renderer leaves the cell blank.
+  - cell: D4
+    kind: subject.grade
+    subject_id: RELIGION_ETHICS
+
+  # Polish (row 5)
+  - cell: D5
+    kind: subject.grade
+    subject_id: L1_NATIVE
+  - cell: E5
+    kind: subject.hours
+    subject_id: L1_NATIVE
+
+  # English (row 6)
+  - cell: D6
+    kind: subject.grade
+    subject_id: L2_ENGLISH
+  - cell: E6
+    kind: subject.hours
+    subject_id: L2_ENGLISH
+
+  # German (row 7)
+  - cell: D7
+    kind: subject.grade
+    subject_id: L2_GERMAN
+  - cell: E7
+    kind: subject.hours
+    subject_id: L2_GERMAN
+
+  # Philosophy (row 8)
+  - cell: D8
+    kind: subject.grade
+    subject_id: PHILOSOPHY
+  - cell: E8
+    kind: subject.hours
+    subject_id: PHILOSOPHY
+
+  # Art (row 9) — typically not graded; D/E left as '-' literals
+  - cell: D9
+    kind: subject.grade
+    subject_id: ART
+
+  # Music (row 10)
+  - cell: D10
+    kind: subject.grade
+    subject_id: MUSIC
+
+  # Latin (row 11)
+  - cell: D11
+    kind: subject.grade
+    subject_id: LATIN_ANCIENT_CULTURE
+  - cell: E11
+    kind: subject.hours
+    subject_id: LATIN_ANCIENT_CULTURE
+
+  # History (row 12)
+  - cell: D12
+    kind: subject.grade
+    subject_id: HISTORY
+  - cell: E12
+    kind: subject.hours
+    subject_id: HISTORY
+
+  # Social Studies (row 13) — Polish HiT in modern curriculum
+  - cell: D13
+    kind: subject.grade
+    subject_id: HISTORY_AND_PRESENT
+  - cell: E13
+    kind: subject.hours
+    subject_id: HISTORY_AND_PRESENT
+
+  # Basics of Entrepreneurship (row 14)
+  - cell: D14
+    kind: subject.grade
+    subject_id: ENTREPRENEURSHIP
+  - cell: E14
+    kind: subject.hours
+    subject_id: ENTREPRENEURSHIP
+
+  # Geography (row 15)
+  - cell: D15
+    kind: subject.grade
+    subject_id: GEOGRAPHY
+  - cell: E15
+    kind: subject.hours
+    subject_id: GEOGRAPHY
+
+  # Biology (row 16)
+  - cell: D16
+    kind: subject.grade
+    subject_id: BIOLOGY
+  - cell: E16
+    kind: subject.hours
+    subject_id: BIOLOGY
+
+  # Chemistry (row 17)
+  - cell: D17
+    kind: subject.grade
+    subject_id: CHEMISTRY
+  - cell: E17
+    kind: subject.hours
+    subject_id: CHEMISTRY
+
+  # Physics (row 18)
+  - cell: D18
+    kind: subject.grade
+    subject_id: PHYSICS
+  - cell: E18
+    kind: subject.hours
+    subject_id: PHYSICS
+
+  # Mathematics (row 19)
+  - cell: D19
+    kind: subject.grade
+    subject_id: MATHEMATICS
+  - cell: E19
+    kind: subject.hours
+    subject_id: MATHEMATICS
+
+  # Information Technology (row 20)
+  - cell: D20
+    kind: subject.grade
+    subject_id: INFORMATION_TECHNOLOGY
+  - cell: E20
+    kind: subject.hours
+    subject_id: INFORMATION_TECHNOLOGY
+
+  # Physical Education (row 21) — D21 typically '-' literal in template
+  - cell: E21
+    kind: subject.hours
+    subject_id: PHYSICAL_EDUCATION
+
+  # Safety Education (row 22) — D22 typically '-' literal in template
+  - cell: E22
+    kind: subject.hours
+    subject_id: SAFETY_EDUCATION

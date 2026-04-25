@@ -1,0 +1,23 @@
+id: pl.lo.swiadectwo_szkolne.v1
+name: Polish General Liceum School Certificate (ŚWIADECTWO SZKOLNE)
+description: |
+  Annual school certificate ("świadectwo szkolne") issued by Polish
+  4-year general high schools (liceum ogólnokształcące) under MEiN-I/14
+  series forms. Covers grades 9–12 in US terms (years 1–4 in PL).
+version: "1.0"
+
+source_language: pl
+education_system: PL
+document_type: school_certificate
+
+fingerprint:
+  header_patterns:
+    - 'ŚWIADECTWO\s+SZKOLNE'
+    - 'WYNIKI\s+KLASYFIKACJI\s+ROCZNEJ'
+  required_keywords:
+    - szkoln
+  min_pages: 1
+  max_pages: 2
+
+default_target_systems:
+  - us-hs.v1

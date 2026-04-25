@@ -1,0 +1,42 @@
+id: pl.6point.v1
+description: |
+  Polish 6-point school grading scale (Skala ocen — zajęcia edukacyjne)
+  defined by the Polish Ministry of Education. Lower numeric value = lower
+  achievement. 1 is failing; 6 is the top grade.
+
+levels:
+  - raw_value: niedostateczny
+    aliases: ["1", "ndst"]
+    canonical: FAIL
+    label: Niedostateczny (Insufficient / Fail)
+    is_passing: false
+
+  - raw_value: dopuszczający
+    aliases: ["2", "dop"]
+    canonical: PASS
+    label: Dopuszczający (Passing)
+    is_passing: true
+
+  - raw_value: dostateczny
+    aliases: ["3", "dst"]
+    canonical: SATISFACTORY
+    label: Dostateczny (Satisfactory)
+    is_passing: true
+
+  - raw_value: dobry
+    aliases: ["4", "db"]
+    canonical: GOOD
+    label: Dobry (Good)
+    is_passing: true
+
+  - raw_value: bardzo dobry
+    aliases: ["5", "bdb"]
+    canonical: VERY_GOOD
+    label: Bardzo dobry (Very Good)
+    is_passing: true
+
+  - raw_value: celujący
+    aliases: ["6", "cel"]
+    canonical: EXCELLENT
+    label: Celujący (Excellent)
+    is_passing: true

@@ -1,0 +1,128 @@
+id: pl.lo.subjects.v1
+description: |
+  Polish liceum subject vocabulary. Maps source-side raw subject names
+  (including common alternative spellings and Roman-numeral level
+  suffixes such as 'IV.1r' for advanced or 'IV.1p' for basic) to
+  language-neutral canonical subject ids.
+
+mappings:
+  # ─── Languages ─────────────────────────────────────────────
+  - raw_name: Język polski
+    canonical_id: L1_NATIVE
+    aliases:
+      - J. polski
+      - Polski
+
+  - raw_name: Język angielski
+    canonical_id: L2_ENGLISH
+    aliases:
+      - J. angielski
+      - Angielski
+      - Język angielski IV.1r.
+      - Język angielski IV.1p.
+
+  - raw_name: Język niemiecki
+    canonical_id: L2_GERMAN
+    aliases:
+      - J. niemiecki
+      - Niemiecki
+      - Język niemiecki IV.1r.
+      - Język niemiecki IV.1p.
+
+  - raw_name: Język francuski
+    canonical_id: L2_FRENCH
+    aliases:
+      - J. francuski
+      - Francuski
+      - Język francuski IV.1r.
+      - Język francuski IV.1p.
+
+  - raw_name: Język hiszpański
+    canonical_id: L2_SPANISH
+    aliases:
+      - J. hiszpański
+      - Hiszpański
+
+  - raw_name: Język rosyjski
+    canonical_id: L2_RUSSIAN
+    aliases:
+      - J. rosyjski
+      - Rosyjski
+
+  - raw_name: Łacina i kultura antyczna
+    canonical_id: LATIN_ANCIENT_CULTURE
+    aliases:
+      - Łacina
+      - Język łaciński
+
+  # ─── Humanities ────────────────────────────────────────────
+  - raw_name: Historia
+    canonical_id: HISTORY
+
+  - raw_name: Historia i teraźniejszość
+    canonical_id: HISTORY_AND_PRESENT
+    aliases:
+      - HiT
+
+  - raw_name: Wiedza o społeczeństwie
+    canonical_id: SOCIAL_STUDIES
+    aliases:
+      - WoS
+
+  - raw_name: Filozofia
+    canonical_id: PHILOSOPHY
+
+  - raw_name: Geografia
+    canonical_id: GEOGRAPHY
+
+  - raw_name: Religia
+    canonical_id: RELIGION_ETHICS
+    aliases:
+      - Etyka
+      - Religia / etyka
+
+  # ─── STEM ──────────────────────────────────────────────────
+  - raw_name: Matematyka
+    canonical_id: MATHEMATICS
+    aliases:
+      - Mat
+
+  - raw_name: Fizyka
+    canonical_id: PHYSICS
+
+  - raw_name: Chemia
+    canonical_id: CHEMISTRY
+
+  - raw_name: Biologia
+    canonical_id: BIOLOGY
+
+  - raw_name: Informatyka
+    canonical_id: INFORMATION_TECHNOLOGY
+    aliases:
+      - IT
+
+  # ─── Arts ──────────────────────────────────────────────────
+  - raw_name: Plastyka
+    canonical_id: ART
+    aliases:
+      - Sztuka
+
+  - raw_name: Muzyka
+    canonical_id: MUSIC
+
+  # ─── Other ─────────────────────────────────────────────────
+  - raw_name: Wychowanie fizyczne
+    canonical_id: PHYSICAL_EDUCATION
+    aliases:
+      - WF
+
+  - raw_name: Edukacja dla bezpieczeństwa
+    canonical_id: SAFETY_EDUCATION
+    aliases:
+      - EDB
+
+  - raw_name: Biznes i zarządzanie
+    canonical_id: ENTREPRENEURSHIP
+    aliases:
+      - Podstawy przedsiębiorczości
+      - PP

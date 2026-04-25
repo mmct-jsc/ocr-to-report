@@ -1,0 +1,59 @@
+default_language_version:
+  python: python3.12
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: '^deploy/helm/'
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.9.0
+          - types-PyYAML
+          - types-requests
+        args: [--strict]
+        files: ^packages/.+\.py$
+        exclude: ^(tests|packages/.+/tests)/
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml']
+        additional_dependencies: ['bandit[toml]']
+        files: ^packages/.+\.py$
+        exclude: ^(tests|packages/.+/tests)/
+
+  - repo: https://github.com/seddonym/import-linter
+    rev: v2.1
+    hooks:
+      - id: import-linter
+        files: ^packages/.+\.py$
+
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.21.0
+    hooks:
+      - id: gitleaks

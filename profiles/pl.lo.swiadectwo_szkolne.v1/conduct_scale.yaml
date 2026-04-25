@@ -1,0 +1,35 @@
+id: pl.conduct.v1
+description: |
+  Polish *zachowanie* (conduct) scale — distinct from the grading scale.
+  Order from worst (naganne) to best (wzorowe).
+
+levels:
+  - raw_value: naganne
+    canonical: FAIL
+    label: Naganne (Reprehensible)
+    is_passing: false
+
+  - raw_value: nieodpowiednie
+    canonical: PASS
+    label: Nieodpowiednie (Inappropriate)
+    is_passing: true
+
+  - raw_value: poprawne
+    canonical: SATISFACTORY
+    label: Poprawne (Acceptable)
+    is_passing: true
+
+  - raw_value: dobre
+    canonical: GOOD
+    label: Dobre (Good)
+    is_passing: true
+
+  - raw_value: bardzo dobre
+    canonical: VERY_GOOD
+    label: Bardzo dobre (Very Good)
+    is_passing: true
+
+  - raw_value: wzorowe
+    canonical: EXCELLENT
+    label: Wzorowe (Exemplary)
+    is_passing: true

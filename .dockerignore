@@ -1,0 +1,29 @@
+.git/
+.github/
+.venv/
+.uv-cache/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+htmlcov/
+.coverage
+.coverage.*
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+!.env.example
+docs/
+tests/
+*.md
+!packages/*/README.md
+9th grade template.xlsx
+Antoni Judek's 9th grade transcript - original.pdf
+sdk-ts/node_modules/
+sdk-ts/dist/

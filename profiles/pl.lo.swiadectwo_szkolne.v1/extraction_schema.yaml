@@ -1,0 +1,138 @@
+id: pl.lo.swiadectwo_szkolne.extraction.v1
+description: |
+  Field set the vision model is asked to extract from a Polish liceum
+  school certificate. Field names are the canonical names recognized by
+  the mapping engine (CANONICAL_EXTRACTION_FIELDS).
+
+fields:
+  - name: full_name
+    description: |
+      Student's full name as printed on page 1 below the heading
+      'imię (imiona) i nazwisko'.
+    kind: string
+    required: true
+    pii_class: pii_direct
+    examples:
+      - Antoni Judek
+      - Anna Nowak
+
+  - name: birth_date
+    description: |
+      Student's date of birth from the 'data urodzenia' field. Return as
+      an ISO date string (YYYY-MM-DD). Polish text format is e.g.
+      "21 grudnia 2009 r." → "2009-12-21".
+    kind: date
+    required: false
+    pii_class: pii_direct
+    validation_pattern: '^\d{4}-\d{2}-\d{2}$'
+
+  - name: school_year
+    description: |
+      Academic year as 'YYYY/YYYY' from the 'w roku szkolnym' field. The
+      second year always follows the first by 1.
+    kind: string
+    required: true
+    pii_class: internal
+    validation_pattern: '^\d{4}/\d{4}$'
+    examples:
+      - "2023/2024"
+
+  - name: current_class_name
+    description: |
+      Genitive form of the class the student attended that year, from
+      'do klasy <klasy>'. Lowercase the value before returning.
+    kind: string
+    required: true
+    pii_class: internal
+    examples:
+      - pierwszej
+      - drugiej
+      - trzeciej
+      - czwartej
+
+  - name: school_name
+    description: |
+      Name of the school, from the line below 'nazwa liceum
+      ogólnokształcącego'. Include the full name including any prefixes
+      (e.g., 'Spark Academy - Liceum Ogólnokształcące').
+    kind: string
+    required: true
+    pii_class: pii_quasi
+    examples:
+      - "Spark Academy - Liceum Ogólnokształcące"
+
+  - name: city
+    description: |
+      City / locality where the school is located, from the 'w' clause
+      ('w Poznaniu') and the date-of-issue line ('Poznań, dnia ...').
+      Use the nominative form (e.g., 'Poznań' not 'Poznaniu').
+    kind: string
+    required: false
+    pii_class: pii_quasi
+    examples:
+      - Poznań
+      - Warszawa
+
+  - name: region
+    description: |
+      Voivodeship from the 'woj.' field, lowercased.
+    kind: string
+    required: false
+    pii_class: pii_quasi
+    examples:
+      - wielkopolskie
+      - mazowieckie
+
+  - name: promoted
+    description: |
+      True if the student was promoted ('otrzymał promocję ...'). Read
+      'promocję z wyróżnieniem' as promoted=true.
+    kind: boolean
+    required: true
+    pii_class: educational
+
+  - name: promoted_with_distinction
+    description: |
+      True iff the document says 'promocję z wyróżnieniem' (promotion
+      with distinction).
+    kind: boolean
+    required: false
+    pii_class: educational
+
+  - name: conduct
+    description: |
+      The 'zachowanie' value, lowercased, from page 2 (e.g., 'wzorowe',
+      'bardzo dobre', 'dobre', 'poprawne', 'nieodpowiednie', 'naganne').
+    kind: string
+    required: false
+    pii_class: educational
+    examples:
+      - wzorowe
+      - bardzo dobre
+
+  - name: subjects
+    description: |
+      All rows from the 'Obowiązkowe zajęcia edukacyjne' table. One row
+      per subject. Each row has:
+        - raw_subject_name: the full subject name as printed (e.g.,
+          'Matematyka', 'Język angielski IV.1r.').
+        - raw_grade_value: the grade word as printed (e.g., 'celujący',
+          'bardzo dobry').
+        - notes: optional free-text note (e.g., '–' if no grade given).
+      Rows where the grade is '–' or blank should still be included
+      with notes='–' so the renderer knows the row was opted out.
+    kind: subject_table
+    required: true
+    pii_class: educational
+
+  - name: advanced_subjects
+    description: |
+      Subject names listed under 'Realizował przedmioty w zakresie
+      rozszerzonym' on page 1. These are taught with extra hours.
+      Return as raw subject names; matching against the main 'subjects'
+      list is performed downstream by the mapping engine.
+    kind: advanced_subjects
+    required: false
+    pii_class: educational
+    examples:
+      - "[Język angielski, Geografia, Matematyka, Fizyka]"

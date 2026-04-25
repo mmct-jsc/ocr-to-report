@@ -1,0 +1,150 @@
+id: us-hs.subjects.v1
+description: |
+  US-HS canonical subject taxonomy.  Hours-per-year values match the
+  Polish 4-year liceum curriculum (the first source profile shipped) for
+  grades 9-12. Other source profiles may override via tenant overrides.
+
+entries:
+  # ─── Languages ─────────────────────────────────────────────
+  - canonical_id: L1_NATIVE
+    display_name: Polish
+    base_hours_default: 108
+    base_hours_per_year: {9: 108, 10: 108, 11: 108, 12: 108}
+    advanced_hour_bonus: 27
+
+  - canonical_id: L2_ENGLISH
+    display_name: English
+    base_hours_default: 81
+    base_hours_per_year: {9: 81, 10: 81, 11: 81, 12: 81}
+    advanced_hour_bonus: 27
+
+  - canonical_id: L2_GERMAN
+    display_name: German
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54, 12: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: L2_FRENCH
+    display_name: French
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54, 12: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: L2_SPANISH
+    display_name: Spanish
+    base_hours_default: 54
+    advanced_hour_bonus: 27
+    optional: true
+
+  - canonical_id: L2_RUSSIAN
+    display_name: Russian
+    base_hours_default: 54
+    advanced_hour_bonus: 27
+    optional: true
+
+  - canonical_id: LATIN_ANCIENT_CULTURE
+    display_name: Latin and Ancient Culture
+    base_hours_default: 27
+    base_hours_per_year: {9: 27, 10: 27}
+    advanced_hour_bonus: 27
+    optional: true
+
+  # ─── Humanities ────────────────────────────────────────────
+  - canonical_id: PHILOSOPHY
+    display_name: Philosophy
+    base_hours_default: 27
+    base_hours_per_year: {9: 27}
+    advanced_hour_bonus: 27
+    optional: true
+
+  - canonical_id: HISTORY
+    display_name: History
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54, 12: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: HISTORY_AND_PRESENT
+    display_name: Social Studies
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: SOCIAL_STUDIES
+    display_name: Social Studies
+    base_hours_default: 54
+    base_hours_per_year: {11: 54, 12: 54}
+    advanced_hour_bonus: 27
+    optional: true
+
+  - canonical_id: GEOGRAPHY
+    display_name: Geography
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: RELIGION_ETHICS
+    display_name: Religion/Ethics
+    advanced_hour_bonus: 27
+    optional: true
+
+  # ─── STEM ──────────────────────────────────────────────────
+  - canonical_id: MATHEMATICS
+    display_name: Mathematics
+    base_hours_default: 108
+    base_hours_per_year: {9: 108, 10: 108, 11: 108, 12: 108}
+    advanced_hour_bonus: 27
+
+  - canonical_id: PHYSICS
+    display_name: Physics
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: CHEMISTRY
+    display_name: Chemistry
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: BIOLOGY
+    display_name: Biology
+    base_hours_default: 54
+    base_hours_per_year: {9: 54, 10: 54, 11: 54}
+    advanced_hour_bonus: 27
+
+  - canonical_id: INFORMATION_TECHNOLOGY
+    display_name: Information Technology
+    base_hours_default: 27
+    base_hours_per_year: {9: 27, 10: 27, 11: 27, 12: 27}
+    advanced_hour_bonus: 27
+
+  # ─── Arts ──────────────────────────────────────────────────
+  - canonical_id: ART
+    display_name: Art
+    advanced_hour_bonus: 27
+    optional: true
+
+  - canonical_id: MUSIC
+    display_name: Music
+    advanced_hour_bonus: 27
+    optional: true
+
+  # ─── Other ─────────────────────────────────────────────────
+  - canonical_id: PHYSICAL_EDUCATION
+    display_name: Physical Education
+    base_hours_default: 81
+    base_hours_per_year: {9: 81, 10: 81, 11: 81, 12: 81}
+    advanced_hour_bonus: 0   # PE is rarely an advanced subject
+
+  - canonical_id: SAFETY_EDUCATION
+    display_name: Safety Education
+    base_hours_default: 27
+    base_hours_per_year: {9: 27}
+    advanced_hour_bonus: 0
+    optional: true
+
+  - canonical_id: ENTREPRENEURSHIP
+    display_name: Basics of Entrepreneurship
+    base_hours_default: 27
+    base_hours_per_year: {9: 27, 10: 27}
+    advanced_hour_bonus: 27

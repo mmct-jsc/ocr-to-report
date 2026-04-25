@@ -1,0 +1,38 @@
+id: pl.lo.4year.v1
+description: |
+  Polish liceum ogólnokształcące — 4-year general high school. Class names
+  appear in genitive case on certificates ('do klasy <klasy>').
+promotes_to_next_year: true
+
+entries:
+  - index: 1
+    raw_name: pierwszej
+    aliases:
+      - klasy pierwszej
+      - "1"
+      - "i"
+    label: 1st year (pierwsza klasa)
+
+  - index: 2
+    raw_name: drugiej
+    aliases:
+      - klasy drugiej
+      - "2"
+      - "ii"
+    label: 2nd year (druga klasa)
+
+  - index: 3
+    raw_name: trzeciej
+    aliases:
+      - klasy trzeciej
+      - "3"
+      - "iii"
+    label: 3rd year (trzecia klasa)
+
+  - index: 4
+    raw_name: czwartej
+    aliases:
+      - klasy czwartej
+      - "4"
+      - "iv"
+    label: 4th year (czwarta klasa)

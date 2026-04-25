@@ -1,0 +1,36 @@
+id: us.letter.v1
+description: |
+  US letter grade scale (A+/A/B/C/D-E/F) used by US-HS reports. The 'D-E'
+  combined band represents the lowest passing grade (Polish dopuszczający,
+  often graded as D minus or low E in US contexts).
+
+levels:
+  - display_value: A+
+    canonical_levels:
+      - EXCELLENT
+    label: A+ (Excellent)
+
+  - display_value: A
+    canonical_levels:
+      - VERY_GOOD
+    label: A (Very Good)
+
+  - display_value: B
+    canonical_levels:
+      - GOOD
+    label: B (Good)
+
+  - display_value: C
+    canonical_levels:
+      - SATISFACTORY
+    label: C (Satisfactory)
+
+  - display_value: D-E
+    canonical_levels:
+      - PASS
+    label: D-E (Passing)
+
+  - display_value: F
+    canonical_levels:
+      - FAIL
+    label: F (Fail)

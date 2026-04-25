@@ -1,0 +1,36 @@
+id: us-hs.conduct.v1
+description: |
+  Display values for conduct in US-HS reports. The US-HS template
+  presents conduct verbatim as the source word (e.g., "Exemplary"); we
+  approximate by reusing the canonical level's natural-language name.
+
+levels:
+  - display_value: Exemplary
+    canonical_levels:
+      - EXCELLENT
+    label: Exemplary
+
+  - display_value: Very Good
+    canonical_levels:
+      - VERY_GOOD
+    label: Very Good
+
+  - display_value: Good
+    canonical_levels:
+      - GOOD
+    label: Good
+
+  - display_value: Acceptable
+    canonical_levels:
+      - SATISFACTORY
+    label: Acceptable
+
+  - display_value: Inappropriate
+    canonical_levels:
+      - PASS
+    label: Inappropriate
+
+  - display_value: Reprehensible
+    canonical_levels:
+      - FAIL
+    label: Reprehensible

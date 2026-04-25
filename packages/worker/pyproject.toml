@@ -1,0 +1,28 @@
+[project]
+name = "ocr-to-report-worker"
+version = "0.1.0-dev"
+description = "OCR-to-Report — Arq async worker"
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "QuocTran" }]
+
+dependencies = [
+    "ocr-to-report-core",
+    "ocr-to-report-adapters",
+    "arq>=0.26.1",
+]
+
+[project.scripts]
+ocr-to-report-worker = "ocr_to_report.worker.__main__:main"
+
+[tool.uv.sources]
+ocr-to-report-core = { workspace = true }
+ocr-to-report-adapters = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ocr_to_report"]

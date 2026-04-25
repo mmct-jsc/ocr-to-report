@@ -1,0 +1,124 @@
+# ─── Original sample data (PII — never commit) ───────────────
+9th grade template.xlsx
+Antoni Judek's 9th grade transcript - original.pdf
+
+# ─── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+build/
+develop-eggs/
+dist/
+downloads/
+sdist/
+wheels/
+share/python-wheels/
+.installed.cfg
+MANIFEST
+
+# ─── Virtual envs ────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.python-version-local
+
+# ─── uv / pip ────────────────────────────────────────────────
+.uv-cache/
+pip-wheel-metadata/
+
+# ─── Type checkers / linters ────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.pylint.d/
+.ruff_cache/
+
+# ─── Testing & coverage ─────────────────────────────────────
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+.testmondata
+__snapshots__/
+
+# ─── Notebooks ──────────────────────────────────────────────
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# ─── Environments / secrets ─────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ─── IDE / Editor ───────────────────────────────────────────
+.vscode/
+!.vscode/settings.json.example
+.idea/
+.claude/settings.local.json
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Node / TypeScript ──────────────────────────────────────
+node_modules/
+.pnpm-store/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+out/
+dist/
+build/
+.turbo/
+
+# ─── Docker / runtime data ──────────────────────────────────
+.docker/
+docker-compose.override.yml
+data/
+.minio-data/
+.postgres-data/
+.redis-data/
+
+# ─── Build artifacts ────────────────────────────────────────
+*.spec
+*.manifest
+
+# ─── OpenAPI / generated SDKs ───────────────────────────────
+sdk-ts/src/generated/
+*.openapi.json.generated
+
+# ─── Test fixtures with PII (never commit raw uploads) ──────
+tests/fixtures/raw/
+tests/fixtures/private/
+
+# ─── OS ─────────────────────────────────────────────────────
+.AppleDouble
+.LSOverride
+Icon
+
+# ─── Misc ───────────────────────────────────────────────────
+.scratch/
+TODO.local.md

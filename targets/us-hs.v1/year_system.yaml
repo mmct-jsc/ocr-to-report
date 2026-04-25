@@ -1,0 +1,23 @@
+id: us-hs.years.v1
+description: |
+  US 9-12 high-school year system. Maps source-side education-system year
+  indices (1-based) to US grade years (9-12). The standard offset is +8
+  for systems that count from 1 at the start of high school (Polish
+  liceum: 1→9, 2→10, 3→11, 4→12).
+
+entries:
+  - target_index: 9
+    source_year_index: 1
+    display_name: "Grade 9"
+
+  - target_index: 10
+    source_year_index: 2
+    display_name: "Grade 10"
+
+  - target_index: 11
+    source_year_index: 3
+    display_name: "Grade 11"
+
+  - target_index: 12
+    source_year_index: 4
+    display_name: "Grade 12"

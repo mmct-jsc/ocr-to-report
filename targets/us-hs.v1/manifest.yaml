@@ -1,0 +1,12 @@
+id: us-hs.v1
+name: US High School (Grades 9-12)
+description: |
+  Standardized US high-school report targeting general admissions reviewers.
+  Maps any source curriculum's grades + subjects into the A+/A/B/C/D-E/F
+  letter scale and the US 9-12 year naming.
+version: "1.0"
+
+output_language: en
+education_system: US
+output_formats:
+  - xlsx
