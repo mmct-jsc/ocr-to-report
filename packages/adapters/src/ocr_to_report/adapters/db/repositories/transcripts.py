@@ -82,6 +82,23 @@ class TranscriptRepo:
         )
         return dict(json.loads(plaintext))
 
+    async def delete_by_job(self, *, tenant_id: uuid.UUID, job_id: uuid.UUID) -> int:
+        """Hard-delete the transcript row for a job; return rows deleted.
+
+        Used by the retention sweep to crypto-shred the encrypted
+        canonical at the row level. The tenant DEK isn't touched
+        (deleting the tenant is what crypto-shreds an entire tenant).
+        """
+        from sqlalchemy import delete  # noqa: PLC0415
+
+        stmt = delete(Transcript).where(
+            Transcript.tenant_id == tenant_id,
+            Transcript.job_id == job_id,
+        )
+        result = await self._session.execute(stmt)
+        rowcount = getattr(result, "rowcount", 0)
+        return int(rowcount or 0)
+
 
 def _aad(tenant_id: uuid.UUID, job_id: uuid.UUID) -> bytes:
     return f"{tenant_id}:{job_id}".encode()

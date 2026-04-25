@@ -150,6 +150,8 @@ def client(settings: Settings, seeded: dict[str, Any]) -> Iterator[TestClient]:
         # Override the lifespan-built app_state with one wired to our
         # mock vision adapter. Must happen *after* TestClient enters the
         # lifespan, otherwise the lifespan rebuilds and overwrites.
+        from ocr_to_report.adapters.queue import InMemoryQueue  # noqa: PLC0415
+
         app.state.app_state = AppState(
             settings=settings,
             encryptor=encryptor,
@@ -159,6 +161,7 @@ def client(settings: Settings, seeded: dict[str, Any]) -> Iterator[TestClient]:
             vision_router=router,
             result_cache=InMemoryAsyncCache(),
             bundle_roots=bundle_roots,
+            queue=InMemoryQueue(),
         )
         yield c
 

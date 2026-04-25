@@ -2318,15 +2318,15 @@ name = "ocr-to-report-worker"
 version = "0.1.0.dev0"
 source = { editable = "packages/worker" }
 dependencies = [
-    { name = "arq" },
     { name = "ocr-to-report-adapters" },
+    { name = "ocr-to-report-api" },
     { name = "ocr-to-report-core" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "arq", specifier = ">=0.26.1" },
     { name = "ocr-to-report-adapters", editable = "packages/adapters" },
+    { name = "ocr-to-report-api", editable = "packages/api" },
     { name = "ocr-to-report-core", editable = "packages/core" },
 ]
 

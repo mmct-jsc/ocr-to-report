@@ -15,6 +15,12 @@ Public surface:
 """
 
 from ocr_to_report.adapters.vision.anthropic_adapter import AnthropicVisionAdapter
+from ocr_to_report.adapters.vision.anthropic_batch import (
+    AnthropicBatchAdapter,
+    BatchHandle,
+    BatchItemResult,
+    BatchStatus,
+)
 from ocr_to_report.adapters.vision.preprocessing import (
     PreprocessConfig,
     detect_media_type,
@@ -53,8 +59,12 @@ from ocr_to_report.adapters.vision.stub_adapters import (
 
 __all__ = [
     "AdaptivePolicy",
+    "AnthropicBatchAdapter",
     "AnthropicVisionAdapter",
     "AsyncCache",
+    "BatchHandle",
+    "BatchItemResult",
+    "BatchStatus",
     "ExtractionResult",
     "FixedPolicy",
     "GoogleVisionAdapter",

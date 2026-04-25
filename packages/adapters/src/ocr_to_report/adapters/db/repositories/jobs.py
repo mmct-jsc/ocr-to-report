@@ -116,5 +116,35 @@ class JobRepo:
         )
         return list(result.scalars().all())
 
+    async def list_pending_batch(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        limit: int = 100,
+    ) -> list[Job]:
+        """Fetch ``kind='batch'`` jobs that haven't been submitted yet."""
+        result = await self._session.execute(
+            select(Job)
+            .where(
+                Job.tenant_id == tenant_id,
+                Job.kind == "batch",
+                Job.status == "pending",
+            )
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def delete(self, job_id: uuid.UUID) -> None:
+        """Hard-delete a job row.
+
+        Caller is responsible for purging the linked transcript + blobs
+        first (see :class:`RetentionService`). Removing the row breaks
+        the audit trail back-reference, so audit log entries should be
+        written before the delete.
+        """
+        job = await self._session.get(Job, job_id)
+        if job is not None:
+            await self._session.delete(job)
+
 
 __all__ = ["JobRepo"]

@@ -8,6 +8,7 @@ factory.
 
 from ocr_to_report.adapters.db.repositories.api_keys import ApiKeyRepo
 from ocr_to_report.adapters.db.repositories.audit import AuditRepo
+from ocr_to_report.adapters.db.repositories.batch_submissions import BatchSubmissionRepo
 from ocr_to_report.adapters.db.repositories.idempotency import IdempotencyRepo
 from ocr_to_report.adapters.db.repositories.jobs import JobRepo
 from ocr_to_report.adapters.db.repositories.tenants import TenantRepo
@@ -18,6 +19,7 @@ from ocr_to_report.adapters.db.repositories.webhooks import WebhookRepo
 __all__ = [
     "ApiKeyRepo",
     "AuditRepo",
+    "BatchSubmissionRepo",
     "IdempotencyRepo",
     "JobRepo",
     "TenantRepo",

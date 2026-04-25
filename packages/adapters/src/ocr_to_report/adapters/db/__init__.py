@@ -14,6 +14,7 @@ from ocr_to_report.adapters.db.base import Base, TimestampedMixin
 from ocr_to_report.adapters.db.models import (
     ApiKey,
     AuditLog,
+    BatchSubmission,
     IdempotencyKey,
     Job,
     ResultCacheRow,
@@ -33,6 +34,7 @@ __all__ = [
     "ApiKey",
     "AuditLog",
     "Base",
+    "BatchSubmission",
     "IdempotencyKey",
     "Job",
     "ResultCacheRow",

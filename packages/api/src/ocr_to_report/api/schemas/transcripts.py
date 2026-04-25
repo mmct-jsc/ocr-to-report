@@ -51,4 +51,28 @@ class TranscriptExtractionResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-__all__ = ["TranscriptExtractionResponse", "TranscriptJobSummary"]
+class BatchAcceptedResponse(BaseModel):
+    """Body of a successful POST /v1/transcripts:batch response.
+
+    The request was queued; results are delivered via webhook
+    (``job.completed``) or polled via ``GET /v1/jobs/{id}``. Half-cost
+    Anthropic Batch SLA: completes within 24h.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    jobs: list[TranscriptJobSummary] = Field(
+        description="One summary per accepted file. Status is 'pending' on accept.",
+    )
+    accepted_count: int = Field(ge=0)
+    rejected: list[str] = Field(
+        default_factory=list,
+        description="Filenames that were rejected (with the reason).",
+    )
+
+
+__all__ = [
+    "BatchAcceptedResponse",
+    "TranscriptExtractionResponse",
+    "TranscriptJobSummary",
+]

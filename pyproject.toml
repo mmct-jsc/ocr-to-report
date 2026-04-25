@@ -198,7 +198,9 @@ root_packages = [
 name = "Layered architecture: entrypoints depend on adapters depend on core"
 type = "layers"
 layers = [
-    "ocr_to_report.api | ocr_to_report.worker | ocr_to_report.cli | ocr_to_report.mcp",
+    "ocr_to_report.cli | ocr_to_report.mcp",
+    "ocr_to_report.worker",
+    "ocr_to_report.api",
     "ocr_to_report.adapters",
     "ocr_to_report.core",
 ]

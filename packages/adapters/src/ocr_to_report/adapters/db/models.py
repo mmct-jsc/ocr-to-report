@@ -318,9 +318,48 @@ class ResultCacheRow(Base, TimestampedMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+# ─── batch_submissions ────────────────────────────────────────
+class BatchSubmission(Base, TimestampedMixin):
+    """An in-flight Anthropic Batch API submission.
+
+    A single row tracks a provider batch and the set of jobs it covers.
+    The worker's BATCH_POLL handler walks active rows and reconciles
+    results back into job rows when the batch ends.
+    """
+
+    __tablename__ = "batch_submissions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    provider: Mapped[str] = mapped_column(String(32), default="anthropic", nullable=False)
+    """Stable provider id (e.g., 'anthropic')."""
+
+    batch_id: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
+    """Provider-assigned batch id."""
+
+    job_ids: Mapped[dict[str, Any]] = mapped_column(default=dict, nullable=False)
+    """JSONB: list of job_id strings included in this batch."""
+
+    status: Mapped[str] = mapped_column(String(32), default="in_progress", nullable=False)
+    """One of: in_progress, ended, canceled, expired, errored."""
+
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_polled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (Index("ix_batch_submissions_tenant_status", "tenant_id", "status"),)
+
+
 __all__ = [
     "ApiKey",
     "AuditLog",
+    "BatchSubmission",
     "IdempotencyKey",
     "Job",
     "ResultCacheRow",

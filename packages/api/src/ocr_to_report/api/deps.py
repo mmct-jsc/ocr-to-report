@@ -28,6 +28,7 @@ from ocr_to_report.adapters.db import (
 from ocr_to_report.adapters.db.repositories import (
     ApiKeyRepo,
     AuditRepo,
+    BatchSubmissionRepo,
     IdempotencyRepo,
     JobRepo,
     TenantRepo,
@@ -35,6 +36,7 @@ from ocr_to_report.adapters.db.repositories import (
     UsageRepo,
     WebhookRepo,
 )
+from ocr_to_report.adapters.queue import InMemoryQueue, Queue
 from ocr_to_report.adapters.render import XlsxRenderer
 from ocr_to_report.adapters.vision import (
     AdaptivePolicy,
@@ -63,6 +65,8 @@ class AppState:
     result_cache: InMemoryAsyncCache
     bundle_roots: dict[str, Path]
     """Maps target_id → absolute path to its bundle directory."""
+    queue: Queue
+    """Async work queue. The API enqueues; the worker drains."""
 
 
 def build_app_state(settings: Settings) -> AppState:
@@ -99,6 +103,7 @@ def build_app_state(settings: Settings) -> AppState:
         vision_router=vision_router,
         result_cache=InMemoryAsyncCache(),
         bundle_roots=bundle_roots,
+        queue=InMemoryQueue(),
     )
 
 
@@ -244,6 +249,10 @@ class RequestRepos:
     @property
     def webhooks(self) -> WebhookRepo:
         return WebhookRepo(self.session, self.encryptor)
+
+    @property
+    def batch_submissions(self) -> BatchSubmissionRepo:
+        return BatchSubmissionRepo(self.session)
 
 
 async def get_repos(
