@@ -1,0 +1,11 @@
+tier: premium
+sync_allowed: true
+p95_target_seconds: 15.0
+provider_policy: sonnet_first
+primary_model: claude-sonnet-4-6
+fallback_model: claude-opus-4-7
+confidence_threshold: 0.95
+park_low_confidence: true
+retention_days: 60
+audit_detail: detailed
+worm_audit: true

@@ -195,9 +195,7 @@ def _build_ctx(
     profile_registry = ProfileRegistry(settings.profiles_root.resolve())
     target_registry = TargetRegistry(settings.targets_root.resolve())
     blob_store = LocalBlobStore(settings.blob_local_root)
-    bundle_roots = {
-        t.id: (settings.targets_root / t.id).resolve() for t in target_registry.all()
-    }
+    bundle_roots = {t.id: (settings.targets_root / t.id).resolve() for t in target_registry.all()}
     return WorkerContext(
         settings=settings,
         queue=queue,
@@ -246,9 +244,7 @@ async def test_batch_submit_handler_persists_submission_and_marks_jobs_running(
         in_progress = await sub_repo.list_in_progress()
         assert len(in_progress) == 1
         assert in_progress[0].status == "in_progress"
-        assert sorted(in_progress[0].job_ids["ids"]) == sorted(
-            str(j) for j in fixture["job_ids"]
-        )
+        assert sorted(in_progress[0].job_ids["ids"]) == sorted(str(j) for j in fixture["job_ids"])
 
         jobs_repo = JobRepo(session)
         for jid in fixture["job_ids"]:
@@ -304,9 +300,7 @@ async def test_batch_poll_marks_results_and_completes_submission(
             error_detail="image too dark",
         ),
     }
-    poll_adapter = _FakeBatchAdapter.make(
-        status=BatchStatus.ENDED, results=poll_results
-    )
+    poll_adapter = _FakeBatchAdapter.make(status=BatchStatus.ENDED, results=poll_results)
     queue2 = InMemoryQueue()
     ctx2 = _build_ctx(settings, queue=queue2, batch_adapter=poll_adapter)
     runner2 = WorkerRunner(ctx=ctx2)

@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     profiles_root: Path = Field(default=Path("./profiles"))
     targets_root: Path = Field(default=Path("./targets"))
     pipelines_root: Path = Field(default=Path("./pipelines"))
+    sla_tiers_root: Path = Field(default=Path("./sla-tiers"))
 
     # ─── Anthropic ────────────────────────────────────────────
     anthropic_api_key: str | None = Field(

@@ -49,6 +49,12 @@ from ocr_to_report.adapters.vision import (
 from ocr_to_report.api.settings import Settings
 from ocr_to_report.core.errors.domain import UnauthorizedError
 from ocr_to_report.core.profiles import ProfileRegistry
+from ocr_to_report.core.sla import (
+    SLA_PRESETS,
+    SlaTier,
+    TenantSlaConfig,
+    load_presets_from_dir,
+)
 from ocr_to_report.core.targets import TargetRegistry
 
 
@@ -67,6 +73,9 @@ class AppState:
     """Maps target_id → absolute path to its bundle directory."""
     queue: Queue
     """Async work queue. The API enqueues; the worker drains."""
+    sla_presets: dict[SlaTier, TenantSlaConfig]
+    """SLA tier → resolved config. Built from ``settings.sla_tiers_root``
+    when present, falls back to the in-code presets otherwise."""
 
 
 def build_app_state(settings: Settings) -> AppState:
@@ -94,6 +103,8 @@ def build_app_state(settings: Settings) -> AppState:
         target.id: (settings.targets_root / target.id).resolve() for target in target_registry.all()
     }
 
+    sla_presets = _load_sla_presets(settings.sla_tiers_root)
+
     return AppState(
         settings=settings,
         encryptor=encryptor,
@@ -104,7 +115,20 @@ def build_app_state(settings: Settings) -> AppState:
         result_cache=InMemoryAsyncCache(),
         bundle_roots=bundle_roots,
         queue=InMemoryQueue(),
+        sla_presets=sla_presets,
     )
+
+
+def _load_sla_presets(root: Path) -> dict[SlaTier, TenantSlaConfig]:
+    """Resolve SLA presets from disk if available, falling back to defaults."""
+    if root.exists() and root.is_dir():
+        try:
+            return load_presets_from_dir(root.resolve())
+        except Exception:
+            # Fall back to in-code defaults if preset loading fails so
+            # the app still boots with reasonable defaults.
+            return dict(SLA_PRESETS)
+    return dict(SLA_PRESETS)
 
 
 def _build_vision_router(settings: Settings) -> ProviderRouter:
@@ -271,6 +295,24 @@ async def get_repos(
         )
 
 
+def resolve_sla_for_tenant(
+    state: AppState,
+    tenant: Tenant,
+) -> TenantSlaConfig:
+    """Return the SLA config to apply to this tenant's requests.
+
+    MVP behavior: read ``tenant.sla_tier`` and look up the matching
+    preset. Per-field overrides (Phase 8b extension) layer on top via
+    the standard overrides resolver — not yet wired here.
+    """
+    try:
+        tier = SlaTier(tenant.sla_tier)
+    except ValueError:
+        # Unknown stored value — fail safe to standard.
+        tier = SlaTier.STANDARD
+    return state.sla_presets.get(tier, state.sla_presets[SlaTier.STANDARD])
+
+
 # ─── Lifespan ────────────────────────────────────────────────
 async def shutdown_lifespan(_: FastAPI) -> None:
     """Dispose engines on app shutdown."""
@@ -293,6 +335,7 @@ __all__ = [
     "get_encryptor",
     "get_repos",
     "get_settings",
+    "resolve_sla_for_tenant",
     "shutdown_lifespan",
     "tenant_db_session",
 ]

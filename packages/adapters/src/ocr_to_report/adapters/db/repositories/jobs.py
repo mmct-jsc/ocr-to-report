@@ -102,12 +102,20 @@ class JobRepo:
         job.error_detail = error_detail
         job.completed_at = datetime.now(tz=UTC)
 
-    async def mark_parked(self, job_id: uuid.UUID, *, park_reason: str) -> None:
+    async def mark_parked(
+        self,
+        job_id: uuid.UUID,
+        *,
+        park_reason: str,
+        input_blob_key: str | None = None,
+    ) -> None:
         job = await self._session.get(Job, job_id)
         if job is None:
             return
         job.status = "parked"
         job.park_reason = park_reason
+        if input_blob_key is not None:
+            job.input_blob_key = input_blob_key
 
     async def list_expired(self, *, now: datetime | None = None, limit: int = 100) -> list[Job]:
         cutoff = now or datetime.now(tz=UTC)
@@ -130,6 +138,22 @@ class JobRepo:
                 Job.kind == "batch",
                 Job.status == "pending",
             )
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def list_by_status(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        status: str,
+        limit: int = 100,
+    ) -> list[Job]:
+        """Fetch jobs in a specific status (parked, succeeded, failed, ...)."""
+        result = await self._session.execute(
+            select(Job)
+            .where(Job.tenant_id == tenant_id, Job.status == status)
+            .order_by(Job.created_at.desc())
             .limit(limit)
         )
         return list(result.scalars().all())

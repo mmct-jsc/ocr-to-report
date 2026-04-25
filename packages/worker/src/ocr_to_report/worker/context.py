@@ -83,8 +83,7 @@ def build_worker_context(
     vision_router, batch_adapter = _build_vision_stack(settings)
 
     bundle_roots = {
-        target.id: (settings.targets_root / target.id).resolve()
-        for target in target_registry.all()
+        target.id: (settings.targets_root / target.id).resolve() for target in target_registry.all()
     }
 
     return WorkerContext(

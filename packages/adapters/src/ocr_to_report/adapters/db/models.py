@@ -348,9 +348,7 @@ class BatchSubmission(Base, TimestampedMixin):
     """One of: in_progress, ended, canceled, expired, errored."""
 
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_polled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("ix_batch_submissions_tenant_status", "tenant_id", "status"),)

@@ -115,11 +115,11 @@ def client_and_queue(
     encryptor = EnvelopeEncryptor(EnvKEKProvider(env_var="OCR2R_KEK_B64"))
     profile_registry = ProfileRegistry(settings.profiles_root.resolve())
     target_registry = TargetRegistry(settings.targets_root.resolve())
-    bundle_roots = {
-        t.id: settings.targets_root / t.id for t in target_registry.all()
-    }
+    bundle_roots = {t.id: settings.targets_root / t.id for t in target_registry.all()}
     queue = InMemoryQueue()
     with TestClient(app) as c:
+        from ocr_to_report.core.sla import SLA_PRESETS  # noqa: PLC0415
+
         app.state.app_state = AppState(
             settings=settings,
             encryptor=encryptor,
@@ -130,6 +130,7 @@ def client_and_queue(
             result_cache=InMemoryAsyncCache(),
             bundle_roots=bundle_roots,
             queue=queue,
+            sla_presets=dict(SLA_PRESETS),
         )
         yield c, queue
 

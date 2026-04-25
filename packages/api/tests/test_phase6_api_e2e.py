@@ -151,6 +151,7 @@ def client(settings: Settings, seeded: dict[str, Any]) -> Iterator[TestClient]:
         # mock vision adapter. Must happen *after* TestClient enters the
         # lifespan, otherwise the lifespan rebuilds and overwrites.
         from ocr_to_report.adapters.queue import InMemoryQueue  # noqa: PLC0415
+        from ocr_to_report.core.sla import SLA_PRESETS  # noqa: PLC0415
 
         app.state.app_state = AppState(
             settings=settings,
@@ -162,6 +163,7 @@ def client(settings: Settings, seeded: dict[str, Any]) -> Iterator[TestClient]:
             result_cache=InMemoryAsyncCache(),
             bundle_roots=bundle_roots,
             queue=InMemoryQueue(),
+            sla_presets=dict(SLA_PRESETS),
         )
         yield c
 

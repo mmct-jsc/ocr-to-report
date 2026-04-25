@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, Header, UploadFile
 
@@ -39,6 +39,7 @@ from ocr_to_report.api.deps import (
     RequestRepos,
     get_app_state,
     get_repos,
+    resolve_sla_for_tenant,
 )
 from ocr_to_report.api.schemas import (
     BatchAcceptedResponse,
@@ -47,12 +48,14 @@ from ocr_to_report.api.schemas import (
 )
 from ocr_to_report.core.errors.domain import (
     ConflictError,
+    ForbiddenError,
     PayloadTooLargeError,
     ValidationError,
     VisionProviderError,
 )
 from ocr_to_report.core.mapping import canonical_to_render_data, extract_to_canonical
 from ocr_to_report.core.pipeline.protocol import StepStatus
+from ocr_to_report.core.sla import TenantSlaConfig
 
 router = APIRouter(prefix="/v1", tags=["transcripts"])
 
@@ -68,7 +71,7 @@ router = APIRouter(prefix="/v1", tags=["transcripts"])
         503: {"description": "No vision provider available"},
     },
 )
-async def create_transcript(
+async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are intentionally sequential
     state: Annotated[AppState, Depends(get_app_state)],
     repos: Annotated[RequestRepos, Depends(get_repos)],
     file: Annotated[UploadFile, File(description="PDF or image of the transcript")],
@@ -91,6 +94,15 @@ async def create_transcript(
     if len(blob) > state.settings.max_upload_bytes:
         raise PayloadTooLargeError(
             f"upload is {len(blob)} bytes; max is {state.settings.max_upload_bytes}",
+        )
+
+    # SLA gate: economy tier rejects sync calls.
+    sla = resolve_sla_for_tenant(state, repos.tenant)
+    if not sla.sync_allowed:
+        raise ForbiddenError(
+            f"tenant SLA tier {sla.tier.value!r} does not allow sync /v1/transcripts; "
+            f"use POST /v1/transcripts:batch instead",
+            tier=sla.tier.value,
         )
 
     request_hash = hashlib.sha256(blob).hexdigest() + ":" + profile_id + ":" + target_id
@@ -144,6 +156,17 @@ async def create_transcript(
             profile_id=profile_id,
         )
         result = await _extract_with_cache(adapter, vision_req, state.result_cache)
+
+        # 2b. Confidence gate — park instead of returning.
+        if sla.park_low_confidence and result.confidence < sla.confidence_threshold:
+            return await _park_low_confidence(
+                state=state,
+                repos=repos,
+                job_id=job.id,
+                blob=blob,
+                sla=sla,
+                result=result,
+            )
 
         # 3. Translate → canonical
         canonical = extract_to_canonical(
@@ -360,6 +383,56 @@ async def create_transcript_batch(
 
 
 # ─── Helpers ──────────────────────────────────────────────────
+async def _park_low_confidence(
+    *,
+    state: AppState,
+    repos: RequestRepos,
+    job_id: uuid.UUID,
+    blob: bytes,
+    sla: TenantSlaConfig,
+    result: ExtractionResult,
+) -> TranscriptExtractionResponse:
+    """Park a job + return the parked-job response."""
+    in_key = f"jobs/{job_id}/input"
+    await state.blob_store.put(in_key, blob)
+    park_reason = (
+        f"extraction confidence {result.confidence:.3f} "
+        f"below SLA tier {sla.tier.value!r} threshold "
+        f"{sla.confidence_threshold:.2f}"
+    )
+    await repos.jobs.mark_parked(
+        job_id,
+        park_reason=park_reason,
+        input_blob_key=in_key,
+    )
+    await repos.audit.append(
+        tenant_id=repos.tenant.id,
+        actor_type="api_key",
+        actor_id_hash="",
+        action="job.parked",
+        resource_type="job",
+        resource_id=str(job_id),
+        metadata={
+            "tier": sla.tier.value,
+            "confidence": result.confidence,
+            "threshold": sla.confidence_threshold,
+        },
+    )
+    parked = await repos.jobs.get(job_id)
+    if parked is None:
+        raise ConflictError("job vanished mid-park")
+    return TranscriptExtractionResponse(
+        job=_build_summary(parked),
+        extraction={"_meta": "parked for manual review"},
+        overall_confidence=result.confidence,
+        warnings=[
+            f"job parked: confidence {result.confidence:.3f} below threshold "
+            f"{sla.confidence_threshold:.2f}",
+            *result.warnings,
+        ],
+    )
+
+
 async def _extract_with_cache(
     adapter: VisionAdapter,
     request: VisionRequest,
@@ -414,6 +487,6 @@ def _current_month_period() -> tuple[datetime, datetime]:
 
 
 # Suppress unused-import warnings (used as types in helpers above).
-_ = (StepStatus, uuid)
+_ = (StepStatus, uuid, Any)
 
 __all__ = ["router"]

@@ -1,0 +1,10 @@
+tier: economy
+sync_allowed: false
+p95_target_seconds: 86400.0  # 24h batch SLA
+provider_policy: batch_only
+primary_model: claude-haiku-4-5
+fallback_model: null
+confidence_threshold: 0.80
+park_low_confidence: false
+retention_days: 7
+audit_detail: minimal

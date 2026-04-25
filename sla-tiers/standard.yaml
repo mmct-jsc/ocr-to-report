@@ -1,0 +1,10 @@
+tier: standard
+sync_allowed: true
+p95_target_seconds: 30.0
+provider_policy: haiku_first
+primary_model: claude-haiku-4-5
+fallback_model: claude-sonnet-4-6
+confidence_threshold: 0.85
+park_low_confidence: true
+retention_days: 30
+audit_detail: standard
