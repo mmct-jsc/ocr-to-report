@@ -31,6 +31,7 @@ dev = [
     "anyio>=4.4.0",
     "types-PyYAML>=6.0.12",
     "openpyxl>=3.1.5",
+    "aiosqlite>=0.20.0",
     # Workspace members exposed to uv sync --dev
     "ocr-to-report-core",
     "ocr-to-report-adapters",
@@ -129,9 +130,9 @@ module = ["packages.*.tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
-# openpyxl ships no type stubs; treat as Any at the renderer boundary.
+# Third-party libs without type stubs; treat as Any at boundaries.
 [[tool.mypy.overrides]]
-module = ["openpyxl", "openpyxl.*"]
+module = ["openpyxl.*", "aioboto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 # ─────────────────────────── pytest ──────────────────────────
