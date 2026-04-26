@@ -112,6 +112,12 @@ sdk-ts/src/generated/
 
 # ─── Test fixtures with PII (never commit raw uploads) ──────
 tests/fixtures/raw/
+
+# ─── Local artifacts from live demo runs ────────────────────
+.playwright-mcp/
+transcript_page*.png
+transcript_out.xlsx
+ui-*.png
 tests/fixtures/private/
 
 # ─── OS ─────────────────────────────────────────────────────

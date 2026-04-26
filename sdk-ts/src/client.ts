@@ -71,7 +71,11 @@ export class Client {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.apiKey = options.apiKey;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Bind ``fetch`` to its host (``window`` / ``globalThis``) so the
+    // browser's "Illegal invocation" check doesn't trip when we later
+    // invoke it as a free function via ``this.fetchImpl(...)``.
+    this.fetchImpl =
+      options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.transcripts = new TranscriptsResource(this);
     this.jobs = new JobsResource(this);
     this.webhooks = new WebhooksResource(this);
@@ -81,7 +85,16 @@ export class Client {
 
   /** @internal */
   public async _call(options: CallOptions): Promise<Response> {
-    const url = new URL(this.baseUrl + options.path);
+    // Support both absolute baseUrls ("https://api.example.com") and
+    // relative ones ("/api") used by browsers behind a same-origin
+    // proxy. `URL` requires an absolute base, so when ours is relative
+    // we anchor it to `window.location.origin` (or a sentinel host
+    // server-side, where the relative case shouldn't happen anyway).
+    const fullPath = this.baseUrl + options.path;
+    const isAbsolute = /^https?:\/\//i.test(fullPath);
+    const baseAnchor =
+      typeof window !== "undefined" && window.location ? window.location.origin : "http://0.0.0.0";
+    const url = new URL(fullPath, isAbsolute ? undefined : baseAnchor);
     if (options.query) {
       for (const [k, v] of Object.entries(options.query)) {
         if (v !== undefined) url.searchParams.set(k, String(v));
