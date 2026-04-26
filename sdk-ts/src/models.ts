@@ -86,3 +86,77 @@ export interface TargetInfo {
 export interface TemplatesResponse {
   targets: TargetInfo[];
 }
+
+// ─── Admin ───────────────────────────────────────────────────
+export interface TenantSummary {
+  id: string;
+  name: string;
+  slug: string;
+  sla_tier: string;
+  region_pin: string | null;
+  default_target_system: string | null;
+  pipeline_id: string;
+  created_at: string;
+  archived_at: string | null;
+}
+
+export interface TenantCreateRequest {
+  name: string;
+  slug: string;
+  sla_tier?: "economy" | "standard" | "premium" | "enterprise";
+  region_pin?: string | null;
+  default_target_system?: string | null;
+  pipeline_id?: string;
+}
+
+export interface TenantUpdateRequest {
+  name?: string;
+  sla_tier?: "economy" | "standard" | "premium" | "enterprise";
+  region_pin?: string | null;
+  default_target_system?: string | null;
+  pipeline_id?: string;
+}
+
+export interface AdminApiKeySummary {
+  id: string;
+  tenant_id: string;
+  prefix: string;
+  label: string | null;
+  scopes: string[];
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  expires_at: string | null;
+}
+
+export interface ApiKeyIssueRequest {
+  label?: string | null;
+  scopes?: string[];
+  live?: boolean;
+}
+
+export interface ApiKeyIssueResponse {
+  api_key: AdminApiKeySummary;
+  secret: string;
+}
+
+export interface AuditEntrySummary {
+  id: string;
+  ts: string;
+  actor_type: string;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface SystemOverview {
+  tenants_total: number;
+  tenants_active: number;
+  api_keys_active: number;
+  profiles_loaded: string[];
+  targets_loaded: string[];
+  sla_presets: string[];
+  queue_depth: number;
+  api_version: string;
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Upload,
@@ -14,12 +15,14 @@ import {
   Activity,
   Menu,
   X,
+  Building2,
+  ServerCog,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useClient } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
-const NAV = [
+const TENANT_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/upload", label: "Process", icon: Upload },
   { to: "/jobs", label: "Jobs", icon: Briefcase },
@@ -29,12 +32,28 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+const ADMIN_NAV = [
+  { to: "/admin/system", label: "System", icon: ServerCog },
+  { to: "/admin/tenants", label: "Tenants", icon: Building2 },
+];
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { signOut, baseUrl } = useAuth();
+  const client = useClient();
   const { theme, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [healthy, setHealthy] = useState<boolean | null>(null);
+
+  // The current key has admin scope iff /v1/admin/system returns 200.
+  // We probe once on mount; admin links only render on success.
+  const adminProbe = useQuery({
+    queryKey: ["admin", "probe"],
+    queryFn: () => client.admin.system().then(() => true).catch(() => false),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const isAdmin = adminProbe.data === true;
 
   useEffect(() => {
     let alive = true;
@@ -84,7 +103,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-thin">
-          {NAV.map((item) => {
+          {TENANT_NAV.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -106,6 +125,36 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </NavLink>
             );
           })}
+
+          {isAdmin && (
+            <>
+              <p className="px-3 pt-5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Admin
+              </p>
+              {ADMIN_NAV.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
+                        "transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )
+                    }
+                  >
+                    <Icon size={16} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </>
+          )}
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-2 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-2">

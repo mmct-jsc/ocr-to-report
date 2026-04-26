@@ -129,6 +129,25 @@ class AuditRepo:
         )
         return list(result.scalars().all())
 
+    async def list_recent(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        limit: int = 100,
+    ) -> list[AuditLog]:
+        """Recent-first audit-log slice for the admin viewer.
+
+        Ordered by ``ts`` desc; chain validation is the verifier's job,
+        not the viewer's.
+        """
+        result = await self._session.execute(
+            select(AuditLog)
+            .where(AuditLog.tenant_id == tenant_id)
+            .order_by(AuditLog.ts.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
 
 def _order_by_chain(rows: list[AuditLog]) -> list[AuditLog]:
     """Order rows by walking ``prev_hash`` → ``row_hash`` linkage.

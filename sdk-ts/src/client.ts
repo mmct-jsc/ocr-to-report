@@ -23,8 +23,16 @@
 import { fromResponse, type ProblemDetail, SDKError } from "./errors.js";
 import type {
   BatchAcceptedResponse,
+  AdminApiKeySummary,
+  ApiKeyIssueRequest,
+  ApiKeyIssueResponse,
+  AuditEntrySummary,
   JobSummary,
+  SystemOverview,
   TemplatesResponse,
+  TenantCreateRequest,
+  TenantSummary,
+  TenantUpdateRequest,
   TranscriptExtractionResponse,
   UsageResponse,
   WebhookCreateResponse,
@@ -61,6 +69,7 @@ export class Client {
   public readonly webhooks: WebhooksResource;
   public readonly usage: UsageResource;
   public readonly templates: TemplatesResource;
+  public readonly admin: AdminResource;
 
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -80,6 +89,7 @@ export class Client {
     this.jobs = new JobsResource(this);
     this.webhooks = new WebhooksResource(this);
     this.usage = new UsageResource(this);
+    this.admin = new AdminResource(this);
     this.templates = new TemplatesResource(this);
   }
 
@@ -284,5 +294,94 @@ class TemplatesResource {
       path: "/v1/templates",
     });
     return (await response.json()) as TemplatesResponse;
+  }
+}
+
+/**
+ * Cross-tenant admin endpoints. The Client instance must be holding a
+ * key with the `admin:*` scope; otherwise every call here returns 403.
+ */
+class AdminResource {
+  constructor(private readonly client: Client) {}
+
+  async system(): Promise<SystemOverview> {
+    const r = await this.client._call({ method: "GET", path: "/v1/admin/system" });
+    return (await r.json()) as SystemOverview;
+  }
+
+  async listTenants(args: { includeArchived?: boolean } = {}): Promise<TenantSummary[]> {
+    const r = await this.client._call({
+      method: "GET",
+      path: "/v1/admin/tenants",
+      query: { include_archived: args.includeArchived ? "true" : undefined },
+    });
+    return (await r.json()) as TenantSummary[];
+  }
+
+  async createTenant(body: TenantCreateRequest): Promise<TenantSummary> {
+    const r = await this.client._call({
+      method: "POST",
+      path: "/v1/admin/tenants",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    return (await r.json()) as TenantSummary;
+  }
+
+  async updateTenant(tenantId: string, body: TenantUpdateRequest): Promise<TenantSummary> {
+    const r = await this.client._call({
+      method: "PATCH",
+      path: `/v1/admin/tenants/${tenantId}`,
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    return (await r.json()) as TenantSummary;
+  }
+
+  async archiveTenant(tenantId: string): Promise<void> {
+    await this.client._call({
+      method: "DELETE",
+      path: `/v1/admin/tenants/${tenantId}`,
+    });
+  }
+
+  async listApiKeys(tenantId: string): Promise<AdminApiKeySummary[]> {
+    const r = await this.client._call({
+      method: "GET",
+      path: `/v1/admin/tenants/${tenantId}/api-keys`,
+    });
+    return (await r.json()) as AdminApiKeySummary[];
+  }
+
+  async issueApiKey(
+    tenantId: string,
+    body: ApiKeyIssueRequest = {},
+  ): Promise<ApiKeyIssueResponse> {
+    const r = await this.client._call({
+      method: "POST",
+      path: `/v1/admin/tenants/${tenantId}/api-keys`,
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    return (await r.json()) as ApiKeyIssueResponse;
+  }
+
+  async revokeApiKey(apiKeyId: string): Promise<void> {
+    await this.client._call({
+      method: "DELETE",
+      path: `/v1/admin/api-keys/${apiKeyId}`,
+    });
+  }
+
+  async tenantAudit(
+    tenantId: string,
+    args: { limit?: number } = {},
+  ): Promise<AuditEntrySummary[]> {
+    const r = await this.client._call({
+      method: "GET",
+      path: `/v1/admin/tenants/${tenantId}/audit`,
+      query: { limit: args.limit ?? 100 },
+    });
+    return (await r.json()) as AuditEntrySummary[];
   }
 }

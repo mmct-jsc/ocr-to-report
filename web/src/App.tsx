@@ -10,6 +10,9 @@ import { WebhooksRoute } from "@/routes/webhooks";
 import { ComplianceRoute } from "@/routes/compliance";
 import { TemplatesRoute } from "@/routes/templates";
 import { SettingsRoute } from "@/routes/settings";
+import { AdminSystemRoute } from "@/routes/admin-system";
+import { AdminTenantsRoute } from "@/routes/admin-tenants";
+import { AdminTenantDetailRoute } from "@/routes/admin-tenant-detail";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { client } = useAuth();
@@ -92,6 +95,31 @@ export function App() {
           </RequireAuth>
         }
       />
+      <Route
+        path="/admin/system"
+        element={
+          <RequireAuth>
+            <AdminSystemRoute />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/tenants"
+        element={
+          <RequireAuth>
+            <AdminTenantsRoute />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/tenants/:tenantId"
+        element={
+          <RequireAuth>
+            <AdminTenantDetailRoute />
+          </RequireAuth>
+        }
+      />
+      <Route path="/admin" element={<Navigate to="/admin/system" replace />} />
       <Route path="/" element={<Navigate to={client ? "/dashboard" : "/login"} replace />} />
       <Route path="*" element={<Navigate to={client ? "/dashboard" : "/login"} replace />} />
     </Routes>

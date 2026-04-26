@@ -47,7 +47,7 @@ from ocr_to_report.adapters.vision import (
     compile_schema,
 )
 from ocr_to_report.api.settings import Settings
-from ocr_to_report.core.errors.domain import UnauthorizedError
+from ocr_to_report.core.errors.domain import ForbiddenError, UnauthorizedError
 from ocr_to_report.core.profiles import ProfileRegistry
 from ocr_to_report.core.sla import (
     SLA_PRESETS,
@@ -228,6 +228,32 @@ async def get_current_dek(
     return auth[2]
 
 
+def _scopes_of(api_key: ApiKey) -> list[str]:
+    """Pull the scope list from the JSONB column's `{scopes: [...]}` shape."""
+    raw = api_key.scopes if isinstance(api_key.scopes, dict) else {}
+    out = raw.get("scopes")
+    return [str(s) for s in out] if isinstance(out, list) else []
+
+
+async def require_admin(
+    auth: Annotated[tuple[ApiKey, Tenant, bytes], Depends(authenticate)],
+) -> tuple[ApiKey, Tenant, bytes]:
+    """Gate on the ``admin:*`` scope.
+
+    Admin endpoints are cross-tenant by design; bootstrap mints an
+    admin key with `--admin`, and only that key can list/create
+    tenants, rotate other tenants' API keys, or view their audit
+    logs.
+    """
+    api_key, _tenant, _dek = auth
+    if "admin:*" not in _scopes_of(api_key):
+        raise ForbiddenError(
+            "admin scope required for this operation",
+            required_scope="admin:*",
+        )
+    return auth
+
+
 async def tenant_db_session(
     state: Annotated[AppState, Depends(get_app_state)],
     tenant: Annotated[Tenant, Depends(get_current_tenant)],
@@ -335,6 +361,7 @@ __all__ = [
     "get_encryptor",
     "get_repos",
     "get_settings",
+    "require_admin",
     "resolve_sla_for_tenant",
     "shutdown_lifespan",
     "tenant_db_session",

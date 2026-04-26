@@ -66,6 +66,39 @@ class TenantRepo:
         result = await self._session.execute(select(Tenant).where(Tenant.slug == slug))
         return result.scalar_one_or_none()
 
+    async def list_all(self, *, include_archived: bool = False) -> list[Tenant]:
+        """Cross-tenant listing for admin scope. Skips archived rows by default."""
+        stmt = select(Tenant).order_by(Tenant.created_at.desc())
+        if not include_archived:
+            stmt = stmt.where(Tenant.archived_at.is_(None))
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        sla_tier: str | None = None,
+        region_pin: str | None = None,
+        default_target_system: str | None = None,
+        pipeline_id: str | None = None,
+    ) -> Tenant | None:
+        tenant = await self._session.get(Tenant, tenant_id)
+        if tenant is None:
+            return None
+        if name is not None:
+            tenant.name = name
+        if sla_tier is not None:
+            tenant.sla_tier = sla_tier
+        if region_pin is not None:
+            tenant.region_pin = region_pin
+        if default_target_system is not None:
+            tenant.default_target_system = default_target_system
+        if pipeline_id is not None:
+            tenant.pipeline_id = pipeline_id
+        return tenant
+
     async def unwrap_dek(self, tenant: Tenant) -> bytes:
         return self._encryptor.unwrap(tenant.dek_wrapped)
 

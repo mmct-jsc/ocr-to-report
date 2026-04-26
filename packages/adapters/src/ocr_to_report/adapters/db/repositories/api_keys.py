@@ -98,5 +98,16 @@ class ApiKeyRepo:
             return
         row.revoked_at = datetime.now(tz=UTC)
 
+    async def list_for_tenant(self, tenant_id: uuid.UUID) -> list[ApiKey]:
+        result = await self._session.execute(
+            select(ApiKey)
+            .where(ApiKey.tenant_id == tenant_id)
+            .order_by(ApiKey.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get(self, api_key_id: uuid.UUID) -> ApiKey | None:
+        return await self._session.get(ApiKey, api_key_id)
+
 
 __all__ = ["ApiKeyRepo"]

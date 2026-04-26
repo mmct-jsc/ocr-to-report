@@ -15,3 +15,9 @@ Tenant: Acme. SLA: Standard. One transcript processed end-to-end (Polish
 | `webhooks.png` | Webhook subscriptions list + add form |
 | `compliance.png` | DSR Article 15 result for "Antoni Judek" (1 record returned) |
 | `templates.png` | Target catalog (us-hs.v1 with grade_9 template) |
+| `admin-system.png` | Admin → System: tenant/key counts, queue depth, profiles + targets + SLA |
+| `admin-tenants.png` | Admin → Tenants: cross-tenant table with create + archive + manage |
+| `admin-tenant-detail.png` | Admin → tenant detail: config / API keys / audit log layout |
+| `admin-key-issued.png` | API-key issuance flow with reveal/hide/copy reveal-once panel |
+| `admin-tenant-created.png` | New "Demo School District" tenant minted via the UI |
+| `admin-acme-detail.png` | Acme detail with 22+ live audit entries (transcript / job.parked / dsr.* / webhook.create) |

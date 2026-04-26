@@ -37,12 +37,34 @@ def bootstrap(
         str,
         typer.Option("--sla-tier", help="economy / standard / premium / enterprise"),
     ] = "standard",
+    admin: Annotated[
+        bool,
+        typer.Option(
+            "--admin",
+            help="Issue an admin:* scoped key (cross-tenant management).",
+        ),
+    ] = False,
 ) -> None:
     """Create the tenant + API key, print credentials."""
-    asyncio.run(_run(name=name, slug=slug, database_url=database_url, sla_tier=sla_tier))
+    asyncio.run(
+        _run(
+            name=name,
+            slug=slug,
+            database_url=database_url,
+            sla_tier=sla_tier,
+            admin=admin,
+        )
+    )
 
 
-async def _run(*, name: str, slug: str, database_url: str | None, sla_tier: str) -> None:
+async def _run(
+    *,
+    name: str,
+    slug: str,
+    database_url: str | None,
+    sla_tier: str,
+    admin: bool = False,
+) -> None:
     # Lazy imports so the dev command is fast when not running.
     from ocr_to_report.adapters.crypto import (  # noqa: PLC0415
         EnvelopeEncryptor,
@@ -80,9 +102,10 @@ async def _run(*, name: str, slug: str, database_url: str | None, sla_tier: str)
         tenant, _dek = await tenants.create(name=name, slug=slug)
         tenant.sla_tier = sla_tier
         keys = ApiKeyRepo(session)
+        scope_list = ["admin:*", "transcripts:write"] if admin else ["transcripts:write"]
         _row, plain_key = await keys.issue(
             tenant_id=tenant.id,
-            scopes=["transcripts:write"],
+            scopes=scope_list,
         )
         await session.commit()
 

@@ -1,5 +1,15 @@
 """Request/response schemas."""
 
+from ocr_to_report.api.schemas.admin import (
+    ApiKeyIssueRequest,
+    ApiKeyIssueResponse,
+    ApiKeySummary,
+    AuditEntrySummary,
+    SystemOverview,
+    TenantCreateRequest,
+    TenantSummary,
+    TenantUpdateRequest,
+)
 from ocr_to_report.api.schemas.dsr import (
     DSRAccessResponse,
     DSRErasureRequest,
@@ -19,11 +29,19 @@ from ocr_to_report.api.schemas.webhooks import (
 )
 
 __all__ = [
+    "ApiKeyIssueRequest",
+    "ApiKeyIssueResponse",
+    "ApiKeySummary",
+    "AuditEntrySummary",
     "BatchAcceptedResponse",
     "DSRAccessResponse",
     "DSRErasureRequest",
     "DSRErasureResponse",
     "DSRPortabilityResponse",
+    "SystemOverview",
+    "TenantCreateRequest",
+    "TenantSummary",
+    "TenantUpdateRequest",
     "TranscriptExtractionResponse",
     "TranscriptJobSummary",
     "UsageResponse",
