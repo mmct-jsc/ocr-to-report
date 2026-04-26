@@ -2,6 +2,85 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.1.0+ui] — 2026-04-26
+
+Post-tag bring-up: live-stack validation against real Anthropic, end-to-end
+flow verified, web Operations Console added.
+
+### Added
+
+- **Web Operations Console** (`web/`) — Vite + React + Tailwind SPA driven
+  by the TypeScript SDK. Pages: dashboard (KPIs + recent jobs + manual-
+  review queue), process (drag-and-drop upload), jobs list + detail,
+  webhooks, GDPR DSR (access / portability / erasure with type-to-confirm),
+  templates catalog, settings. Light + dark themes, toast system, live
+  API health pulse. Screenshots in `docs/ui/`.
+- **`ocr-to-report bootstrap`** CLI — seeds a tenant + API key against
+  the configured `OCR2R_DATABASE_URL`. Lets `docker compose up` smoke
+  the whole stack without writing SQL.
+- **`docs/BUDGET.md`** — production cost model grounded in a real
+  benchmark ($0.031 / page on Standard with fallback, ~$0.005 on Haiku-
+  only) plus per-tier projections and infra estimates.
+
+### Fixed
+
+Live-stack bugs surfaced when running the full Polish→US-HS path against
+a real Anthropic key:
+
+- **Dockerfile editable install paths**: `python -m ocr_to_report.api`
+  crash-looped because the venv's `.pth` files pointed at
+  `/build/packages/.../src` while the runtime stage copied source to
+  `/app/packages`. Keep source at `/build/packages` in the runtime image
+  in both `docker/api.Dockerfile` and `docker/worker.Dockerfile`.
+- **`docker-compose.yml`**: scaffolded `worker` service was never wired
+  up; `OCR2R_BLOB_BACKEND=s3` was missing so the API silently fell back
+  to local-fs even with MinIO running.
+- **Stub vision adapters** raised raw `NotImplementedError`, which
+  leaked as 500 with a stack trace. Replaced with
+  `ProviderNotConfiguredError` (HTTP 503, problem+json).
+- **Transcripts router** committed `mark_failed` after the outer
+  `tenant_scoped_session` rollback wiped the row. 503s reached users
+  but the failed job vanished from the DB. Catch every
+  `OcrToReportError`, explicit-commit before re-raise.
+- **`ApiKeyRepo.authenticate`** malformed bearer tokens raised
+  `ApiKeyError` → 500; now uniformly map to 401.
+- **Audit chain ordering**: `verify_for_tenant` ordered by `(ts, id)`
+  with a random UUID PK; same-microsecond inserts scrambled the chain
+  and the verifier raised false `AuditChainBroken`. Walk the chain by
+  `prev_hash` → `row_hash` linkage instead.
+- **API container missing `poppler-utils`**: every PDF upload returned
+  400 from `pdf2image`. Now installed in both Dockerfiles.
+- **Anthropic structured-output schema constraints**: the platform
+  rejects `minimum`/`maximum` on numbers and only accepts the literal
+  `false` for `additionalProperties`. The `_meta` envelope dropped
+  numeric bounds (clamps on read instead) and dropped the
+  `field_confidences` map (overall confidence + warnings still drive
+  the SLA gate).
+- **`idempotency_keys.request_hash`** column was VARCHAR(64) but the
+  value is `<sha256>:<profile_id>:<target_id>` (~100+ chars). Widened
+  to VARCHAR(256). Existing Postgres needs `ALTER TABLE
+  idempotency_keys ALTER COLUMN request_hash TYPE VARCHAR(256);`.
+- **TypeScript SDK** — `new URL(this.baseUrl + path)` threw when
+  `baseUrl` was relative (`/api`); anchor to `window.location.origin`.
+  Storing the unbound global `fetch` and calling it via
+  `this.fetchImpl(...)` raised "Illegal invocation" in browsers; wrap
+  with `(input, init) => fetch(input, init)`.
+
+### Verified end-to-end
+
+- All five containers green (`api`, `worker`, `postgres`, `redis`,
+  `minio`).
+- POST `/v1/transcripts` with the real Polish PDF → page-1 PNG → 200
+  in ~4s with `claude-sonnet-4-6`, 3,192/419 tokens, $0.0313, real
+  19KB xlsx downloadable via `/v1/jobs/<id>/result`.
+- Idempotency replay with the same `Idempotency-Key` returns the cached
+  body in <1s.
+- DSR access surfaces the matching transcript; erasure crypto-shreds
+  the row + blobs, leaving `record_count: 0` and the result endpoint
+  404ing.
+- All UI pages exercised against the running stack via Playwright MCP.
+- 503 Python tests + 12 TypeScript tests still green.
+
 ## [0.1.0] — 2026-04-25
 
 First MVP release. Polish ŚWIADECTWO SZKOLNE → US High School Grade 9 Excel,
