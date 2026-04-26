@@ -130,8 +130,11 @@ core ← adapters ← {api, worker, cli, mcp}
 - [Security](SECURITY.md) — threat model, reporting policy
 - [Contributing](CONTRIBUTING.md) — dev workflow, test conventions, PR rules
 - [Budget](docs/BUDGET.md) — production cost model, real benchmark, tier pricing
+- [Roadmap](docs/ROADMAP.md) — version-by-version trajectory from MVP to GA:
+  per-tenant workflow / template / SLA overrides (v0.2), provider choice +
+  BYOK (v0.3), subscriptions + quotas (v0.4), localization (v0.5), and on
 - [Design plan](docs/plans/2026-04-25-ocr-to-report-design.md) — locked
-  decisions and phased build sequence
+  decisions and phased build sequence (MVP scope)
 - [CHANGELOG](CHANGELOG.md) — full v0.1.0 entry covering every phase
 
 ## License

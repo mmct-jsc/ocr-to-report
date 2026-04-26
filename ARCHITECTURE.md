@@ -130,6 +130,9 @@ or bare Docker. Helm chart deferred to v1.1.
 ## Where to read next
 
 - The full design plan: [`docs/plans/2026-04-25-ocr-to-report-design.md`](docs/plans/2026-04-25-ocr-to-report-design.md)
+  (locked decisions + MVP build sequence)
+- The product roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md) (post-MVP version
+  trajectory — per-tenant overrides, BYOK, subscriptions, i18n, GA)
 - Security model: [`SECURITY.md`](SECURITY.md)
 - Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - ADRs: `docs/adr/` (added as decisions are revised)
