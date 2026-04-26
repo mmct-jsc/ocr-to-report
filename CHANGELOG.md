@@ -2,6 +2,57 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.1.0+admin] — 2026-04-26
+
+Admin section + cross-tenant viewing for support and ops. Builds on
+`0.1.0+ui`; same containers, additive only.
+
+### Added
+
+- **Admin section in the API** (`/v1/admin/*`, gated on the `admin:*`
+  scope) — system overview, tenant CRUD with SLA tier + archival,
+  per-tenant API-key issuance + revocation, and a paged audit log.
+  `bootstrap --admin` mints the first admin key.
+- **Admin pages in the Web Console** — System (KPIs + bundle inventory
+  + queue depth), Tenants (table view, create dialog, archive),
+  Tenant detail (API keys, audit log).
+- **Tenant impersonation via `X-Acting-Tenant-Id`** — admin keys can
+  view *any* tenant's data on the regular tenant-scoped pages
+  (Dashboard, Jobs, Webhooks, Compliance, Templates, Settings) by
+  setting the header. The TS SDK exposes it as the `actingTenantId`
+  client option + `setActingTenantId()` setter; the web UI surfaces
+  it as a topbar **TenantSwitcher** dropdown that triggers a
+  `react-query` invalidation so every visible page refetches under
+  the new tenant context. Non-admin keys that try to impersonate get
+  403; admins pointing at an unknown tenant get 404.
+- **Impersonation auditing** — every successful impersonation appends
+  a `tenant.impersonated_access` row on the **target** tenant (so its
+  auditors can see who accessed their data and when). The metadata
+  records the admin's home tenant, the HTTP method, and the path.
+
+### Fixed
+
+- **Starlette `MultiPartParser.max_part_size`** defaulted to 1 MiB,
+  silently truncating real multi-page PDF uploads (5–20 MB rendered).
+  Now wired to `settings.max_upload_bytes` so the request reaches the
+  upload guard instead of dying at the parser.
+- **PDF render latency** — single-thread `pdf2image` at 200 DPI
+  blocked the lone uvicorn worker for 25+ seconds per page on the
+  benchmark transcript. Drop to 150 DPI + `thread_count=2` and run
+  with `OCR2R_API_WORKERS=2` in `docker-compose.yml`. Two-page PDF
+  now finishes in ~117s end-to-end with the full grade list (was
+  template-only because page 2 never reached the model).
+
+### Tests
+
+- **5 new Python tests** (`test_phase12_tenant_impersonation.py`):
+  admin can swap, non-admin gets 403, unknown UUID gets 404, invalid
+  UUID gets 403, and audit row lands on the target tenant.
+- **3 new TS SDK tests**: header sent when set, omitted when unset,
+  cleared on `setActingTenantId(null)`.
+
+Totals: 53 Python + 15 TypeScript tests passing.
+
 ## [0.1.0+ui] — 2026-04-26
 
 Post-tag bring-up: live-stack validation against real Anthropic, end-to-end

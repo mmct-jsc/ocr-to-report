@@ -81,6 +81,13 @@ drop upload), jobs list, job detail with download/approve/reject, webhooks,
 GDPR DSR (access/portability/erasure), templates, settings. Light + dark
 themes. Live API health pulse in the sidebar.
 
+Keys with the `admin:*` scope unlock an extra **Admin** section (System,
+Tenants) plus a topbar **TenantSwitcher** dropdown that lets an admin view
+any tenant's dashboard, jobs, webhooks, compliance, and settings — switching
+the API context via the `X-Acting-Tenant-Id` header. Every impersonated
+request appends a `tenant.impersonated_access` audit row on the *target*
+tenant, so the data owner can see who looked and when.
+
 In production, the SPA is built inside `docker/web.Dockerfile` and served by
 nginx (`docker/web.nginx.conf`); the same nginx proxies `/api/*` to the API
 container so the browser stays same-origin (no CORS, no preflights). For

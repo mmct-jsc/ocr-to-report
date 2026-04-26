@@ -394,3 +394,61 @@ describe("Templates / Usage / Webhooks", () => {
     expect(list).toHaveLength(1);
   });
 });
+
+describe("Client tenant impersonation", () => {
+  it("sends X-Acting-Tenant-Id when actingTenantId is set", async () => {
+    const fake = makeFakeFetch(
+      async () =>
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      actingTenantId: "11111111-1111-1111-1111-111111111111",
+      fetchImpl: fake.fetch,
+    });
+    await client.jobs.list();
+    expect(fake.calls[0]!.headers.get("X-Acting-Tenant-Id")).toBe(
+      "11111111-1111-1111-1111-111111111111",
+    );
+  });
+
+  it("does not send X-Acting-Tenant-Id when unset", async () => {
+    const fake = makeFakeFetch(
+      async () =>
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    const client = new Client({ baseUrl: "http://test", apiKey: "sk_test", fetchImpl: fake.fetch });
+    await client.jobs.list();
+    expect(fake.calls[0]!.headers.has("X-Acting-Tenant-Id")).toBe(false);
+  });
+
+  it("setActingTenantId(null) clears the header on subsequent calls", async () => {
+    const fake = makeFakeFetch(
+      async () =>
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      actingTenantId: "11111111-1111-1111-1111-111111111111",
+      fetchImpl: fake.fetch,
+    });
+    await client.jobs.list();
+    client.setActingTenantId(null);
+    await client.jobs.list();
+    expect(fake.calls[0]!.headers.get("X-Acting-Tenant-Id")).toBe(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    expect(fake.calls[1]!.headers.has("X-Acting-Tenant-Id")).toBe(false);
+  });
+});

@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/cn";
 import { useAuth, useClient } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { TenantSwitcher } from "@/components/tenant-switcher";
 
 const TENANT_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -183,6 +184,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
           <div className="flex-1" />
+          <TenantSwitcher />
           <Link
             to="/upload"
             className="hidden md:inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"

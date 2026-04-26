@@ -43,6 +43,14 @@ export interface ClientOptions {
   baseUrl: string;
   apiKey: string;
   timeoutMs?: number;
+  /**
+   * If set, sends `X-Acting-Tenant-Id` on every request. Requires the
+   * key to have the `admin:*` scope. The server swaps the tenant
+   * context for tenant-scoped endpoints (jobs, transcripts, webhooks,
+   * dsr, usage) and audits the impersonation on the target tenant.
+   * Set to `null` to clear; not sent when undefined.
+   */
+  actingTenantId?: string | null;
   /** Optional fetch implementation — useful for tests + non-global-fetch runtimes. */
   fetchImpl?: typeof fetch;
 }
@@ -75,11 +83,13 @@ export class Client {
   private readonly apiKey: string;
   private readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch;
+  private actingTenantId: string | null;
 
   constructor(options: ClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.apiKey = options.apiKey;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.actingTenantId = options.actingTenantId ?? null;
     // Bind ``fetch`` to its host (``window`` / ``globalThis``) so the
     // browser's "Illegal invocation" check doesn't trip when we later
     // invoke it as a free function via ``this.fetchImpl(...)``.
@@ -91,6 +101,14 @@ export class Client {
     this.usage = new UsageResource(this);
     this.admin = new AdminResource(this);
     this.templates = new TemplatesResource(this);
+  }
+
+  /**
+   * Update the impersonation header without rebuilding the Client. Pass
+   * `null` to clear. Useful when an admin UI swaps tenant context.
+   */
+  public setActingTenantId(id: string | null): void {
+    this.actingTenantId = id;
   }
 
   /** @internal */
@@ -113,6 +131,7 @@ export class Client {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.apiKey}`,
       "User-Agent": "ocr-to-report-ts/0.1",
+      ...(this.actingTenantId ? { "X-Acting-Tenant-Id": this.actingTenantId } : {}),
       ...options.headers,
     };
     const ctrl = new AbortController();

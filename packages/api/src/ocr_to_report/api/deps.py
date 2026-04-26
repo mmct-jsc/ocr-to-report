@@ -186,12 +186,26 @@ async def authenticate(
 ) -> tuple[ApiKey, Tenant, bytes]:
     """Resolve the bearer API key → (api_key row, tenant row, plaintext DEK).
 
-    Returns a 401 with a problem-detail body on any auth failure.
+    Honors the optional ``X-Acting-Tenant-Id`` header: when the calling
+    key has the ``admin:*`` scope and the header points at an existing
+    tenant, the returned tenant + DEK are swapped to that tenant. Every
+    tenant-scoped endpoint (jobs, transcripts, webhooks, dsr, usage)
+    then operates on the impersonated tenant transparently.
+
+    Each impersonated request appends a ``tenant.impersonated_access``
+    audit-log entry on the *target* tenant so an auditor can see when
+    an admin viewed the data and which admin key did it.
+
+    Non-admin keys that try to impersonate get a 403; admin keys whose
+    header points at a missing/archived tenant get a 404. The 401 path
+    is reserved for bad/missing bearer tokens.
     """
     auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         raise UnauthorizedError("missing bearer token in Authorization header")
     presented = auth_header[7:].strip()
+
+    acting_header = request.headers.get("x-acting-tenant-id")
 
     sm = get_sessionmaker(state.settings.database_url)
     async with sm() as session:
@@ -203,6 +217,50 @@ async def authenticate(
         tenant = await tenants.get(api_key.tenant_id)
         if tenant is None or tenant.archived_at is not None:
             raise UnauthorizedError("tenant archived or unavailable")
+
+        # Admin impersonation: swap tenant context if the header is set.
+        if acting_header and acting_header != str(tenant.id):
+            if "admin:*" not in _scopes_of(api_key):
+                raise ForbiddenError(
+                    "X-Acting-Tenant-Id requires the admin:* scope",
+                    required_scope="admin:*",
+                )
+            try:
+                acting_id = uuid.UUID(acting_header)
+            except ValueError as e:
+                raise ForbiddenError(
+                    f"X-Acting-Tenant-Id is not a valid UUID: {acting_header!r}",
+                ) from e
+            target = await tenants.get(acting_id)
+            if target is None or target.archived_at is not None:
+                from ocr_to_report.core.errors.domain import (  # noqa: PLC0415
+                    NotFoundError,
+                )
+
+                raise NotFoundError(
+                    f"no tenant with id={acting_id}",
+                    tenant_id=str(acting_id),
+                )
+            # Audit on the impersonated tenant so its auditors see the access.
+            from ocr_to_report.adapters.db.repositories import (  # noqa: PLC0415
+                AuditRepo,
+            )
+
+            await AuditRepo(session).append(
+                tenant_id=target.id,
+                actor_type="admin_api",
+                actor_id_hash=str(api_key.id),
+                action="tenant.impersonated_access",
+                resource_type="tenant",
+                resource_id=str(target.id),
+                metadata={
+                    "admin_tenant_id": str(api_key.tenant_id),
+                    "method": request.method,
+                    "path": request.url.path,
+                },
+            )
+            tenant = target
+
         dek = await tenants.unwrap_dek(tenant)
         await session.commit()
 

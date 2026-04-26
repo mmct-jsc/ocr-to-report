@@ -117,6 +117,10 @@ tests/fixtures/raw/
 .playwright-mcp/
 transcript_page*.png
 transcript_out.xlsx
+transcript_full.xlsx
+transcript_p*.jpg
+transcript_p*.png
+tenant-switcher-*.png
 ui-*.png
 tests/fixtures/private/
 
