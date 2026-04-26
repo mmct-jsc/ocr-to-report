@@ -47,12 +47,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OCR2R_API_HOST=0.0.0.0 \
     OCR2R_API_PORT=8000
 
-# Runtime OS deps (kept minimal). poppler-utils for future PDF→image step.
+# Runtime OS deps (kept minimal). poppler-utils backs pdf2image's
+# PDF -> PNG pre-processor; without it any PDF upload returns 400.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         libpq5 \
         ca-certificates \
         curl \
+        poppler-utils \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd -r app -g 10001 \
  && useradd  -r -u 10001 -g app -d /app -s /sbin/nologin app

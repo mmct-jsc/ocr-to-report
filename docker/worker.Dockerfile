@@ -37,7 +37,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libpq5 ca-certificates \
+ && apt-get install -y --no-install-recommends \
+        libpq5 \
+        ca-certificates \
+        poppler-utils \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd -r app -g 10001 \
  && useradd  -r -u 10001 -g app -d /app -s /sbin/nologin app

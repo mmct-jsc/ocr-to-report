@@ -285,7 +285,10 @@ class IdempotencyKey(Base, TimestampedMixin):
         nullable=False,
     )
     key: Mapped[str] = mapped_column(String(128), nullable=False)
-    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # request_hash holds ``<sha256>:<profile_id>:<target_id>`` so the
+    # idempotency replay only fires for the exact same request shape.
+    # 64 chars (sha) + 2 separators + ~120 chars of ids — round up.
+    request_hash: Mapped[str] = mapped_column(String(256), nullable=False)
 
     response_status: Mapped[int] = mapped_column(Integer, nullable=False)
     response_body: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

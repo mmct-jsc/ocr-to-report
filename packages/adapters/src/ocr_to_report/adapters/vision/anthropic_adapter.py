@@ -102,27 +102,25 @@ def _wrap_schema(extraction_schema: dict[str, Any]) -> dict[str, Any]:
     properties = dict(extraction_schema.get("properties") or {})
     required = list(extraction_schema.get("required") or [])
 
+    # Anthropic's output_config.format.schema is a strict subset of
+    # JSON Schema:
+    # * ``minimum`` / ``maximum`` on numeric types are rejected — express
+    #   the [0, 1] range in the description and clamp on the way out.
+    # * ``additionalProperties`` may only be the literal ``false`` (a
+    #   sub-schema isn't allowed). That kills the natural shape for
+    #   ``field_confidences`` (map of name → number), so we drop the
+    #   field for now; the overall ``confidence`` + ``warnings`` carry
+    #   the same signal the gate cares about.
     properties[_META_KEY] = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
             "confidence": {
                 "type": "number",
-                "minimum": 0.0,
-                "maximum": 1.0,
                 "description": (
-                    "Overall extraction confidence in [0, 1]. Reflect honesty "
-                    "about ambiguous fields and image quality."
+                    "Overall extraction confidence as a number in [0, 1]. "
+                    "Reflect honesty about ambiguous fields and image quality."
                 ),
-            },
-            "field_confidences": {
-                "type": "object",
-                "additionalProperties": {
-                    "type": "number",
-                    "minimum": 0.0,
-                    "maximum": 1.0,
-                },
-                "description": "Per-field confidence map keyed by field name.",
             },
             "warnings": {
                 "type": "array",
@@ -147,12 +145,19 @@ def _unwrap_response(
     response_json: dict[str, Any],
 ) -> tuple[dict[str, Any], float, dict[str, float] | None, list[str]]:
     """Pull confidence, field_confidences, and warnings out of ``_meta``;
-    return the rest as the raw extraction."""
+    return the rest as the raw extraction.
+
+    The Anthropic JSON-schema flavor doesn't enforce numeric range, so
+    we clamp confidences to [0, 1] here as belt-and-suspenders before
+    they reach the downstream Pydantic models that *do* enforce it.
+    """
     meta = response_json.pop(_META_KEY, {}) or {}
-    confidence = float(meta.get("confidence", 0.0))
+    confidence = max(0.0, min(1.0, float(meta.get("confidence", 0.0))))
     field_confidences = meta.get("field_confidences")
     if field_confidences is not None:
-        field_confidences = {k: float(v) for k, v in field_confidences.items()}
+        field_confidences = {
+            k: max(0.0, min(1.0, float(v))) for k, v in field_confidences.items()
+        }
     warnings = list(meta.get("warnings", []) or [])
     return response_json, confidence, field_confidences, warnings
 
