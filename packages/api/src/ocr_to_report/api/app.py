@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from starlette.formparsers import MultiPartParser
 
 from ocr_to_report.adapters.db import dispose_engines
 from ocr_to_report.api.deps import build_app_state
@@ -51,6 +52,15 @@ def _make_lifespan(settings: Settings) -> Any:
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
+
+    # Starlette's MultiPartParser defaults to a 1 MiB cap per uploaded
+    # part. That's smaller than any real transcript image — multi-page
+    # PDFs render to 5-20 MB PNGs even after preprocess. Align it with
+    # the size we already enforce ourselves (`require_safe_upload`),
+    # so the request reaches our handler instead of dying at the
+    # multipart parser with a generic 400.
+    MultiPartParser.max_part_size = settings.max_upload_bytes
+
     app = FastAPI(
         title="OCR-to-Report",
         version=get_version_info().api,

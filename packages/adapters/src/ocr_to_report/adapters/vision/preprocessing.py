@@ -34,7 +34,10 @@ DEFAULT_MAX_LONG_EDGE_PX: Final[int] = 1568
 DEFAULT_MIN_LONG_EDGE_PX: Final[int] = 200
 DEFAULT_MAX_PAGES: Final[int] = 10
 DEFAULT_MAX_INPUT_BYTES: Final[int] = 25 * 1024 * 1024  # 25 MB
-DEFAULT_PDF_RENDER_DPI: Final[int] = 200
+DEFAULT_PDF_RENDER_DPI: Final[int] = 150
+"""150 DPI is plenty for OCR on a sub-1568px-long-edge target — and it
+keeps a 2-page Polish transcript from spending 20+ seconds in
+pdftocairo before we even talk to the model."""
 
 _PDF_MAGIC: Final[bytes] = b"%PDF-"
 _PNG_MAGIC: Final[bytes] = b"\x89PNG\r\n\x1a\n"
@@ -124,6 +127,9 @@ def _pdf_to_images(blob: bytes, cfg: PreprocessConfig) -> list[Image]:
                 fmt="png",
                 last_page=cfg.max_pages,
                 use_pdftocairo=True,
+                # Render pages in parallel — single-threaded on a 2-page
+                # transcript still takes ~10s with pdftocairo at 150 DPI.
+                thread_count=2,
             )
         )
     except Exception as e:

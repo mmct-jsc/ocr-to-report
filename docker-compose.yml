@@ -24,6 +24,10 @@ services:
       OCR2R_BLOB_ACCESS_KEY: minioadmin
       OCR2R_BLOB_SECRET_KEY: minioadmin
       OCR2R_BLOB_BUCKET: ocr2r
+      # Force production-style serving so uvicorn can spawn multiple
+      # workers (reload mode is single-worker only).
+      OCR2R_ENV: production
+      OCR2R_API_WORKERS: "2"
     ports:
       - "8000:8000"
     depends_on:
