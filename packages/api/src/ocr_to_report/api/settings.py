@@ -71,6 +71,27 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 25 * 1024 * 1024
     """Maximum size of an uploaded transcript blob (25 MiB)."""
 
+    # ─── CORS ────────────────────────────────────────────────
+    cors_allowed_origins: list[str] = Field(default_factory=list)
+    """Origins permitted by the browser CORS check.
+
+    Empty (the default) means CORS middleware is **not installed** and
+    cross-origin browser callers receive a ``405`` on their ``OPTIONS``
+    preflight — same shape as a same-origin-only deployment.
+
+    Set this when the API is exposed on a different origin from the
+    web console (e.g. when both are tunneled separately for sharing,
+    or when an external SDK consumer hosts a page on its own domain).
+    """
+
+    cors_allowed_origin_regex: str | None = None
+    """Regex alternative for ``cors_allowed_origins``.
+
+    Useful for tunnel/dev environments where the public hostname is
+    randomized — e.g. ``https://.*\\.trycloudflare\\.com`` whitelists
+    every Cloudflare quick-tunnel URL without listing them by hand.
+    """
+
     # ─── Build metadata ───────────────────────────────────────
     git_sha: str = "dev"
     build_time: str = "dev"

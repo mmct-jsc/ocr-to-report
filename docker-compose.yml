@@ -28,6 +28,11 @@ services:
       # workers (reload mode is single-worker only).
       OCR2R_ENV: production
       OCR2R_API_WORKERS: "2"
+      # CORS: allow any Cloudflare quick-tunnel hostname out of the box
+      # so a tunneled UI on one *.trycloudflare.com URL can call the API
+      # tunnel on a different *.trycloudflare.com URL without preflight
+      # 405s. Override OCR2R_CORS_ALLOWED_ORIGINS in .env to restrict.
+      OCR2R_CORS_ALLOWED_ORIGIN_REGEX: 'https://.*\.trycloudflare\.com'
     ports:
       - "8000:8000"
     depends_on:

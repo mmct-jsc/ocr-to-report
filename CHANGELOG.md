@@ -2,6 +2,41 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.1.0+cors] — 2026-04-29
+
+### Fixed
+
+- **Cross-origin browser callers got `405 Method Not Allowed` on every
+  authenticated request.** The API has no CORS middleware, so the
+  ``OPTIONS`` preflight that browsers send before any non-simple request
+  (anything with `Authorization: Bearer …`) hit the FastAPI router with
+  no matching handler and was rejected with 405. Same-origin deployments
+  (web nginx proxies `/api/*` to the API) were unaffected, but the
+  moment the API was exposed on a different origin — most obviously when
+  shared through a separate Cloudflare tunnel from the web console —
+  every SDK-driven page broke.
+
+### Added
+
+- `OCR2R_CORS_ALLOWED_ORIGINS` (list) and
+  `OCR2R_CORS_ALLOWED_ORIGIN_REGEX` (string) settings. Both default to
+  empty / null, preserving the previous "same-origin only" posture; the
+  CORS middleware is only installed when at least one is set. Headers
+  allowed on cross-origin requests: `Authorization`, `Content-Type`,
+  `Idempotency-Key`, `X-Acting-Tenant-Id`, `X-Request-Id`. Methods:
+  `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`. Preflight cached
+  for 10 minutes (`max_age=600`).
+- `docker-compose.yml` now seeds
+  `OCR2R_CORS_ALLOWED_ORIGIN_REGEX=https://.*\.trycloudflare\.com` so a
+  tunneled web on one quick-tunnel hostname can call a tunneled API on
+  another out of the box. Operators override via `.env` for production.
+- 5 new tests (`packages/api/tests/test_cors.py`) covering: default
+  locked-down posture preserved, allowlist preflight succeeds, regex
+  preflight succeeds, untrusted origin rejected, real GET responses
+  carry `Access-Control-Allow-Origin`.
+
+Totals: 58 Python + 15 TypeScript tests passing.
+
 ## [0.1.0+admin] — 2026-04-26
 
 Admin section + cross-tenant viewing for support and ops. Builds on

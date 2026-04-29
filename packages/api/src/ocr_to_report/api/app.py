@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Final
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.formparsers import MultiPartParser
 
@@ -75,6 +76,33 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         redoc_url=f"{API_PREFIX}/redoc",
         openapi_url=f"{API_PREFIX}/openapi.json",
     )
+
+    # CORS: only installed when the operator explicitly opts in. Without
+    # this, browser-based callers on a different origin (e.g. an SDK
+    # consumer's webpage, or a separately-tunneled UI) hit a 405 on the
+    # OPTIONS preflight because no handler exists for that method on the
+    # target route. Same-origin deployments (web nginx proxies /api/*)
+    # don't need CORS — leaving the lists empty preserves that posture.
+    if settings.cors_allowed_origins or settings.cors_allowed_origin_regex:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_allowed_origins or [],
+            allow_origin_regex=settings.cors_allowed_origin_regex,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "Idempotency-Key",
+                "X-Acting-Tenant-Id",
+                "X-Request-Id",
+            ],
+            expose_headers=["X-Request-Id"],
+            # Bearer auth lives in the Authorization header, not cookies,
+            # so we don't need credentials and can therefore allow the
+            # wildcard `*` form when an operator wants it.
+            allow_credentials=False,
+            max_age=600,
+        )
 
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)

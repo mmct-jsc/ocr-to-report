@@ -30,7 +30,7 @@ Every roadmap item below maps to one of those axes.
 ```
                  ┌──────────────────── manageable ─────────────────┐
                  │  admin: tenants, keys, audit, system, billing   │
-                 │  ops:   runbooks, alerts, SLO dashboard          │
+                 │  ops:   runbooks, alerts, SLO dashboard         │
                  └─────────────────────────────────────────────────┘
                                        │
             ┌──────────────────── customizable ────────────────────┐
