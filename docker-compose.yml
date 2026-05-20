@@ -33,6 +33,11 @@ services:
       # tunnel on a different *.trycloudflare.com URL without preflight
       # 405s. Override OCR2R_CORS_ALLOWED_ORIGINS in .env to restrict.
       OCR2R_CORS_ALLOWED_ORIGIN_REGEX: 'https://.*\.trycloudflare\.com'
+      # Dev convenience: a fresh ``ocr2r_postgres_data`` volume gets the
+      # schema created on first API boot so authenticated endpoints
+      # don't silently 500. Production deploys MUST run schema changes
+      # through alembic — set this to false in your override file.
+      OCR2R_AUTO_MIGRATE_ON_BOOT: "true"
     ports:
       - "8000:8000"
     depends_on:
