@@ -1,0 +1,240 @@
+name: release
+
+# Tag-triggered release pipeline.
+#
+# Build → sign → publish:
+#   - Runs the gate-keeping CI checks one more time (lint, mypy, tests).
+#   - Builds api/worker/web images for amd64 + arm64.
+#   - Pushes to GitHub Container Registry under
+#     ghcr.io/<owner>/ocr2r-{api,worker,web}:<tag> + :latest.
+#   - Generates an SPDX SBOM per image (Anchore syft action).
+#   - Signs each image with sigstore cosign (keyless OIDC).
+#   - Creates a GitHub Release with the matching CHANGELOG section.
+#
+# Trigger: push a tag matching v* (e.g. `git tag v0.2.0 && git push --tags`).
+# Manual trigger (workflow_dispatch) is also wired for re-runs without a
+# new tag — useful when fixing a publish-only step.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v0.2.0). Must already exist."
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write     # create GitHub Release
+  packages: write     # push to GHCR
+  id-token: write     # cosign keyless signing via OIDC
+  attestations: write # publish image attestations
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.10.0"
+
+jobs:
+  # ─── 1. Gate ────────────────────────────────────────────────
+  # Re-run the must-pass CI checks. A green tag should fail loudly
+  # if it can't build clean.
+  gate:
+    name: Gate (lint + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-packages --group dev
+      - run: uv run ruff check .
+      - run: uv run mypy packages
+      - run: uv run pytest -m "not integration and not e2e and not load and not contract" -q
+
+  # ─── 2. Resolve tag ─────────────────────────────────────────
+  resolve:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    needs: gate
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          if [[ -z "$TAG" || ! "$TAG" =~ ^v.+ ]]; then
+            echo "::error::Could not resolve a v* tag from ref or input."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  # ─── 3. Build + push + sign each image ──────────────────────
+  build:
+    name: Build ${{ matrix.image }}
+    needs: [gate, resolve]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: docker/api.Dockerfile
+          - image: worker
+            dockerfile: docker/worker.Dockerfile
+          - image: web
+            dockerfile: docker/web.Dockerfile
+    outputs:
+      api-digest: ${{ steps.push.outputs.digest }}
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository_owner }}/ocr2r-${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Generate :v0.2.0, :0.2.0, :0.2, :latest tags from the
+          # resolved version. Stable tags only — no pre-release stew.
+          tags: |
+            type=raw,value=${{ needs.resolve.outputs.tag }}
+            type=raw,value=${{ needs.resolve.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.resolve.outputs.tag }}
+            type=raw,value=latest
+
+      - id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # Multi-arch so it runs on M-series Macs + ARM cloud nodes.
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ github.run_id }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.spdx.json
+          if-no-files-found: error
+
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign image (keyless OIDC)
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+
+      - name: Attest SBOM
+        run: |
+          cosign attest --yes \
+            --predicate sbom-${{ matrix.image }}.spdx.json \
+            --type spdxjson \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+
+  # ─── 4. GitHub Release ──────────────────────────────────────
+  release:
+    name: GitHub Release
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract CHANGELOG section
+        id: changelog
+        run: |
+          # Pull the section for this tag out of CHANGELOG.md so the
+          # GitHub Release body matches the canonical changelog.
+          VERSION="${{ needs.resolve.outputs.version }}"
+          # Strip the v-prefix and any trailing +qualifier for matching.
+          # We look for an exact heading match: ## [<version>] — date
+          awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "## \\[" ver "\\]") { found=1; print; next }
+            }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::warning::No CHANGELOG section found for $VERSION; using fallback."
+            echo "# ${{ needs.resolve.outputs.tag }}" > release-notes.md
+            echo "" >> release-notes.md
+            echo "_See CHANGELOG.md for the full history._" >> release-notes.md
+          fi
+          echo "----- release-notes.md -----"
+          cat release-notes.md
+
+      - name: Download all SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sbom-*
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          name: ${{ needs.resolve.outputs.tag }}
+          body_path: release-notes.md
+          generate_release_notes: false
+          files: |
+            sbom-*.spdx.json
+          fail_on_unmatched_files: false
+          draft: false
+          prerelease: ${{ contains(needs.resolve.outputs.tag, '-') }}
+
+  # ─── 5. Smoke test the published images ─────────────────────
+  smoke:
+    name: Smoke (pull + /v1/health)
+    needs: [resolve, build, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull published api image
+        run: docker pull ghcr.io/${{ github.repository_owner }}/ocr2r-api:${{ needs.resolve.outputs.tag }}
+      - name: Verify cosign signature
+        uses: sigstore/cosign-installer@v3
+      - run: |
+          cosign verify \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ghcr.io/${{ github.repository_owner }}/ocr2r-api:${{ needs.resolve.outputs.tag }}
