@@ -2,6 +2,56 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.1.0+resilience] — 2026-05-20
+
+Defense-in-depth for the empty-volume-silently-500s failure mode. After a
+`docker compose down -v` (or any other path that wipes
+`ocr2r_postgres_data`), every authenticated endpoint hit
+`UndefinedTableError: relation "api_keys" does not exist` inside
+`authenticate()` and returned an opaque 500 — `/v1/health` kept returning
+200 the whole time because it doesn't touch the DB, so observers
+debugged the wrong endpoint. Three independent improvements:
+
+### Added
+
+- **`/v1/ready` deep database check.** The readiness endpoint now probes
+  the schema by running `SELECT 1 FROM api_keys LIMIT 0`. Returns:
+  - `{"status": "ok", "checks": {"database": "ready", ...}}` with **200** when the schema is in place,
+  - `{"status": "degraded", "checks": {"database": "schema_missing", ...}}` with **503** when the DB is reachable but tables are gone,
+  - `{"status": "degraded", "checks": {"database": "unreachable", ...}}` with **503** when the connection itself fails.
+
+  Kubernetes `readinessProbe` and the web SPA's health pulse both
+  surface the actual issue. **Breaking-shaped change** for anyone who
+  treated `/v1/ready` as always-200 — that was never the contract; the
+  endpoint now reflects reality.
+
+- **`OCR2R_AUTO_MIGRATE_ON_BOOT` setting** (default **off**, dev/CI
+  convenience). When true, the API lifespan runs `Base.metadata.create_all`
+  on startup so a fresh database volume self-heals to a working schema
+  without an out-of-band `ocr-to-report bootstrap` run. Compose now
+  ships with this on so local dev never hits the empty-volume trap.
+  Production deploys must keep it off; schema changes belong in alembic
+  (arriving in v0.2.0, Task 1 of `docs/plans/2026-04-29-v0.2.0-...`).
+
+- **`docs/runbooks/empty-database-recovery.md`** — first entry in the
+  previously-empty runbooks directory. Diagnoses the symptom, lists
+  three recovery paths (auto-migrate env var, host bootstrap CLI,
+  container-side bootstrap CLI), covers the `cut -d= -f2-` gotcha that
+  eats the trailing `=` of the base64 KEK, and documents the
+  prevention story for dev vs. production.
+
+### Tests
+
+- 4 new tests in `packages/api/tests/test_readiness_and_automigrate.py`:
+  empty schema → 503 with `schema_missing`; present schema → 200 with
+  `ready`; auto-migrate disabled by default; auto-migrate enabled
+  creates schema during lifespan.
+- 1 existing test in `test_health.py` updated — was pinning
+  `/v1/ready` to always-200, now correctly asserts the 200-or-503
+  contract plus `checks.database` membership.
+
+Totals: 62 Python + 15 TypeScript tests passing.
+
 ## [0.1.0+cors] — 2026-04-29
 
 ### Fixed
