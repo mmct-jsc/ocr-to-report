@@ -18,14 +18,20 @@ def test_health_returns_ok() -> None:
     assert r.json() == {"status": "ok"}
 
 
-def test_ready_returns_ok_with_checks_object() -> None:
+def test_ready_returns_checks_object() -> None:
+    """``/v1/ready`` always returns a ``checks`` map. The status code is
+    200 when every deep check passes and 503 when any is degraded; the
+    default ``Settings()`` uses an in-memory SQLite with no schema, so
+    here we expect 503 + ``database == schema_missing``. Schema-present
+    branches are covered by test_readiness_and_automigrate.py."""
     with _client() as c:
         r = c.get("/v1/ready")
-    assert r.status_code == 200
+    assert r.status_code in (200, 503)
     body = r.json()
-    assert body["status"] == "ok"
+    assert body["status"] in ("ok", "degraded")
     assert "checks" in body
     assert isinstance(body["checks"], dict)
+    assert "database" in body["checks"]
 
 
 def test_version_returns_metadata() -> None:

@@ -10,7 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.formparsers import MultiPartParser
 
-from ocr_to_report.adapters.db import dispose_engines
+from sqlalchemy import text
+
+from ocr_to_report.adapters.db import Base, dispose_engines, get_engine
 from ocr_to_report.api.deps import build_app_state
 from ocr_to_report.api.errors import install_exception_handlers
 from ocr_to_report.api.metrics import install_metrics
@@ -44,6 +46,20 @@ def _make_lifespan(settings: Settings) -> Any:
             # KEK is unset in dev). Endpoints that need it will surface a
             # clear error per request rather than crashing at boot.
             app.state.app_state = None
+
+        # Opt-in: create tables on boot. Lets a fresh dev volume self-heal
+        # without an out-of-band ``ocr-to-report bootstrap`` run. Default
+        # off — production schema changes must go through alembic.
+        if settings.auto_migrate_on_boot:
+            try:
+                engine = get_engine(settings.database_url)
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+            except Exception:
+                # Don't crash startup if migration fails — readiness will
+                # surface the issue and the operator can intervene.
+                pass
+
         try:
             yield
         finally:
@@ -125,18 +141,60 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     @app.get(f"{API_PREFIX}/ready", tags=["system"])
     async def ready() -> JSONResponse:
         state = getattr(app.state, "app_state", None)
+        # Cheap probe — does the schema exist? An empty DB is the most
+        # common "looks alive but nothing works" failure mode, since
+        # every authenticated endpoint reads ``api_keys``.
+        db_status = await _check_database(settings.database_url)
         checks = {
             "app_state": "ready" if state is not None else "not_configured",
             "vision_providers": "not_configured" if state is None else "ready",
             "blob_store": "not_configured" if state is None else "ready",
+            "database": db_status,
         }
-        return JSONResponse({"status": "ok", "checks": checks})
+        # 503 if any deep check is in a non-ready state. The "not_configured"
+        # branches on app_state are dev-only and intentionally allowed to
+        # report 200 — they don't indicate an unhealthy deployment, only
+        # an unconfigured one.
+        degraded = db_status != "ready"
+        return JSONResponse(
+            {"status": "degraded" if degraded else "ok", "checks": checks},
+            status_code=503 if degraded else 200,
+        )
 
     @app.get(f"{API_PREFIX}/version", tags=["system"])
     async def version() -> JSONResponse:
         return JSONResponse(get_version_info().to_dict())
 
     return app
+
+
+async def _check_database(database_url: str) -> str:
+    """Probe whether the schema exists. Returns one of:
+
+    * ``"ready"``         — the ``api_keys`` table is queryable
+    * ``"schema_missing"`` — DB reachable but tables aren't there
+    * ``"unreachable"``    — couldn't connect at all
+
+    Kept narrow on purpose; this is a /v1/ready signal, not a metrics
+    surface. Detailed introspection lives in the metrics middleware.
+    """
+    try:
+        engine = get_engine(database_url)
+        async with engine.connect() as conn:
+            # LIMIT 0 — we don't care about rows, only that the table
+            # exists. The query is parsed + planned and returns
+            # immediately without scanning.
+            await conn.execute(text("SELECT 1 FROM api_keys LIMIT 0"))
+        return "ready"
+    except Exception as e:
+        msg = str(e).lower()
+        if (
+            "undefinedtable" in msg
+            or "no such table" in msg
+            or "does not exist" in msg
+        ):
+            return "schema_missing"
+        return "unreachable"
 
 
 app = create_app()

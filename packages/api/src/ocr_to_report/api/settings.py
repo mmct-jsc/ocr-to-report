@@ -92,6 +92,18 @@ class Settings(BaseSettings):
     every Cloudflare quick-tunnel URL without listing them by hand.
     """
 
+    # ─── Schema management ──────────────────────────────────────
+    auto_migrate_on_boot: bool = False
+    """If true, the API lifespan runs ``Base.metadata.create_all`` on
+    startup so a fresh database has tables without an out-of-band
+    bootstrap. Dev/CI convenience; **leave off in production** where
+    schema changes must go through alembic.
+
+    Until v0.2.0 ships alembic (see `docs/plans/2026-04-29-v0.2.0-...`),
+    this is the only thing that prevents the "fresh volume → 500 on every
+    authed call" failure mode after a `docker compose down -v`.
+    """
+
     # ─── Build metadata ───────────────────────────────────────
     git_sha: str = "dev"
     build_time: str = "dev"
