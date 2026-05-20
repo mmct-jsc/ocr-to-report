@@ -2,9 +2,10 @@
 
 | Owner | QuocTran |
 |---|---|
-| Last updated | 2026-04-26 |
-| Current version | `v0.1.0+admin` |
+| Last updated | 2026-04-29 |
+| Current version | `v0.1.0+cors` |
 | Next milestone | `v0.2.0` — Per-tenant customization |
+| Plan for next milestone | [`docs/plans/2026-04-29-v0.2.0-tenant-overrides.md`](plans/2026-04-29-v0.2.0-tenant-overrides.md) |
 
 This document maps the full product trajectory from the shipped MVP through
 General Availability. Each row in [§3](#3-version-trajectory) names a
@@ -74,7 +75,21 @@ themes. nginx serves SPA + proxies `/api`.
 on `admin:*`. Admin section in the web console. **Tenant impersonation**
 via `X-Acting-Tenant-Id` with audit on the target tenant — admins can
 view *any* tenant's dashboard/jobs/webhooks/compliance/settings without
-re-authenticating. 53 Python + 15 TS tests passing.
+re-authenticating.
+
+### Shipped — `v0.1.0+cors` (2026-04-29)
+
+CORS middleware (opt-in via `OCR2R_CORS_ALLOWED_ORIGINS` /
+`OCR2R_CORS_ALLOWED_ORIGIN_REGEX`) so browser-driven SDK consumers on a
+different origin can succeed their `OPTIONS` preflight. Compose seeds
+`https://.*\.trycloudflare\.com` regex for tunnel-sharing workflows.
+
+Also shipped this round (not version-tagged): public `/demo` route in
+the web console (unauthenticated feature tour with the full
+screenshot gallery), tag-triggered release pipeline at
+`.github/workflows/release.yml` (multi-arch GHCR push, SBOM, cosign
+keyless signing, GitHub Release auto-extracted from CHANGELOG), and
+this version of the roadmap. 58 Python + 15 TS tests passing.
 
 ---
 
