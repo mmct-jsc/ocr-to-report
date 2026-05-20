@@ -81,7 +81,13 @@ export function LoginRoute() {
           <code className="font-mono bg-white/10 px-1.5 py-0.5 rounded">
             ocr-to-report bootstrap
           </code>{" "}
-          on the host.
+          on the host. ·{" "}
+          <a
+            href="/demo"
+            className="underline decoration-primary-foreground/30 hover:decoration-primary-foreground"
+          >
+            See the feature tour
+          </a>
         </p>
       </section>
 

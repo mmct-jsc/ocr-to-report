@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { LoginRoute } from "@/routes/login";
+import { DemoRoute } from "@/routes/demo";
 import { DashboardRoute } from "@/routes/dashboard";
 import { UploadRoute } from "@/routes/upload";
 import { JobsRoute } from "@/routes/jobs";
@@ -27,6 +28,9 @@ export function App() {
   const { client } = useAuth();
   return (
     <Routes>
+      {/* Public, unauthenticated feature tour. Available regardless of
+          sign-in state so shareable links work for new visitors. */}
+      <Route path="/demo" element={<DemoRoute />} />
       <Route
         path="/login"
         element={client ? <Navigate to="/dashboard" replace /> : <LoginRoute />}

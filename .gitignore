@@ -121,6 +121,8 @@ transcript_full.xlsx
 transcript_p*.jpg
 transcript_p*.png
 tenant-switcher-*.png
+demo-page-*.png
+demo-features.png
 ui-*.png
 tests/fixtures/private/
 
