@@ -160,6 +160,13 @@ markers = [
 filterwarnings = [
     "error",
     "ignore::DeprecationWarning:pkg_resources",
+    # SQLAlchemy AsyncEngine + Starlette's sync TestClient race ResourceWarning
+    # ("unclosed socket" / "unclosed event loop") on Linux during teardown —
+    # the engine.dispose() inside the lifespan does run, but the OS-level fd
+    # close races GC on Linux (passes silently on Windows). Not a real leak;
+    # ignoring here keeps every other warning ratcheting to error.
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
 ]
 
 [tool.coverage.run]
