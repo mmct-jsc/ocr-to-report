@@ -280,17 +280,28 @@ jobs:
         env:
           OWNER: ${{ github.repository_owner }}
           TAG: ${{ needs.resolve.outputs.tag }}
+        # The earlier 10-iteration tight loop was too tight: a cold
+        # ``docker run`` of a freshly-pulled image can take 3-8 seconds
+        # before the port-forward actually starts proxying traffic on
+        # GitHub-hosted runners, and the v0.2.0 release happened to land
+        # outside that window. Now: 30 attempts × 2-second sleep
+        # (~60s ceiling) + ``--connect-timeout 2`` so each curl gives
+        # up fast rather than blocking on the default 2-minute TCP
+        # timeout. Pre-sleep gives nginx a fighting chance on the very
+        # first probe.
         run: |
           set -euo pipefail
           cid=$(docker run -d -p 8080:80 "ghcr.io/${OWNER}/ocr2r-web:${TAG}")
           trap "docker rm -f ${cid} >/dev/null 2>&1 || true" EXIT
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:8080/ | grep -q "^200$"; then
-              echo "web image returned 200 on /"
+          sleep 2
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8080/ || echo "000")
+            if [ "${code}" = "200" ]; then
+              echo "web image returned 200 on / after ${i} attempt(s)"
               exit 0
             fi
-            sleep 1
+            sleep 2
           done
-          echo "::error::web image did not return 200 on / after 10s"
+          echo "::error::web image did not return 200 on / after ~60s"
           docker logs "${cid}" || true
           exit 1
