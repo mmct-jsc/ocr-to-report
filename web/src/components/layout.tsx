@@ -56,6 +56,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   });
   const isAdmin = adminProbe.data === true;
 
+  // Esc closes the mobile sidebar — matches what every other overlay
+  // (dialogs, dropdowns) does, so keyboard users have a uniform mental
+  // model for "get out of this thing."
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
   useEffect(() => {
     let alive = true;
     const ping = async () => {

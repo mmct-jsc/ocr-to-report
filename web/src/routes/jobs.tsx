@@ -87,14 +87,14 @@ export function JobsRoute() {
               <table className="w-full text-sm" data-testid="jobs-table">
                 <thead className="bg-muted/40">
                   <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-5 py-2.5">Status</th>
-                    <th className="px-5 py-2.5">ID</th>
-                    <th className="px-5 py-2.5">Profile → Target</th>
-                    <th className="px-5 py-2.5">Provider</th>
-                    <th className="px-5 py-2.5 text-right">Tokens</th>
-                    <th className="px-5 py-2.5 text-right">Cost</th>
-                    <th className="px-5 py-2.5">Created</th>
-                    <th className="px-5 py-2.5 text-right" />
+                    <th scope="col" className="px-5 py-2.5">Status</th>
+                    <th scope="col" className="px-5 py-2.5">ID</th>
+                    <th scope="col" className="px-5 py-2.5">Profile → Target</th>
+                    <th scope="col" className="px-5 py-2.5">Provider</th>
+                    <th scope="col" className="px-5 py-2.5 text-right">Tokens</th>
+                    <th scope="col" className="px-5 py-2.5 text-right">Cost</th>
+                    <th scope="col" className="px-5 py-2.5">Created</th>
+                    <th scope="col" className="px-5 py-2.5 text-right" ><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

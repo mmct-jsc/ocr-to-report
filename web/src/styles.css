@@ -70,6 +70,23 @@
     scroll-behavior: smooth;
   }
 
+  /* Honor ``prefers-reduced-motion`` — users with vestibular
+     disorders, ADHD, or motion sensitivity have it on. We can't
+     selectively turn off every Tailwind ``transition-*`` /
+     ``animate-*`` class, so we ratchet the global animation +
+     transition durations to near-zero. The end state still happens
+     (toggles flip, dropdowns open) just without the motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* Focus ring tuned for the slate/indigo palette. */
   :focus-visible {
     outline: 2px solid rgb(var(--ring));

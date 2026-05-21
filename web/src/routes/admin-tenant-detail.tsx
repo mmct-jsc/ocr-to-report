@@ -395,11 +395,11 @@ export function AdminTenantDetailRoute() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40">
                     <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="px-5 py-2.5">Timestamp</th>
-                      <th className="px-5 py-2.5">Actor</th>
-                      <th className="px-5 py-2.5">Action</th>
-                      <th className="px-5 py-2.5">Resource</th>
-                      <th className="px-5 py-2.5">Metadata</th>
+                      <th scope="col" className="px-5 py-2.5">Timestamp</th>
+                      <th scope="col" className="px-5 py-2.5">Actor</th>
+                      <th scope="col" className="px-5 py-2.5">Action</th>
+                      <th scope="col" className="px-5 py-2.5">Resource</th>
+                      <th scope="col" className="px-5 py-2.5">Metadata</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">

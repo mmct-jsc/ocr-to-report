@@ -130,7 +130,13 @@ export function JobDetailRoute() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center gap-3 flex">
             <CardTitle>Status</CardTitle>
-            <StatusBadge status={j.status} />
+            {/* Auto-refetch (refetchInterval on the job query) can flip
+                this from "running" to "succeeded" without user input.
+                aria-live="polite" makes the change announce to SR
+                users without interrupting other speech. */}
+            <span aria-live="polite">
+              <StatusBadge status={j.status} />
+            </span>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -144,9 +150,11 @@ export function JobDetailRoute() {
               <Field label="Created">{formatTime(j.created_at)}</Field>
               <Field label="Completed">{formatTime(j.completed_at)}</Field>
               <Field label="Expires">{formatTime(j.expires_at)}</Field>
-              <Field label="Idempotency key">
-                <span className="font-mono text-xs break-all">—</span>
-              </Field>
+              {/* Idempotency key was previously hardcoded to "—" — the
+                  job summary endpoint doesn't return it. Removed
+                  rather than display a dead "—" that reads as a UI
+                  bug. If the API later surfaces it, add the field
+                  back keyed on the real value. */}
             </dl>
 
             {j.error_detail && (

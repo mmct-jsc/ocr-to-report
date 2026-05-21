@@ -100,13 +100,13 @@ export function AdminTenantsRoute() {
               <table className="w-full text-sm" data-testid="tenants-table">
                 <thead className="bg-muted/40">
                   <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-5 py-2.5">Name</th>
-                    <th className="px-5 py-2.5">Slug</th>
-                    <th className="px-5 py-2.5">SLA</th>
-                    <th className="px-5 py-2.5">Pipeline</th>
-                    <th className="px-5 py-2.5">Region</th>
-                    <th className="px-5 py-2.5">Created</th>
-                    <th className="px-5 py-2.5 text-right" />
+                    <th scope="col" className="px-5 py-2.5">Name</th>
+                    <th scope="col" className="px-5 py-2.5">Slug</th>
+                    <th scope="col" className="px-5 py-2.5">SLA</th>
+                    <th scope="col" className="px-5 py-2.5">Pipeline</th>
+                    <th scope="col" className="px-5 py-2.5">Region</th>
+                    <th scope="col" className="px-5 py-2.5">Created</th>
+                    <th scope="col" className="px-5 py-2.5 text-right" ><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -290,15 +290,21 @@ function CreateTenantPanel({ onCreated }: { onCreated: () => void }) {
 }
 
 function tierTone(tier: string): "info" | "success" | "warning" | "neutral" {
+  // Don't use ``warning`` for enterprise — orange reads as
+  // "something's wrong with this tenant," not "this is the top
+  // tier." Enterprise gets ``success`` (most prestigious available
+  // semantic color); premium uses ``info`` to differentiate; standard
+  // and economy stay neutral. If we add a dedicated brand-purple
+  // tone for enterprise later, swap here.
   switch (tier) {
     case "economy":
       return "neutral";
     case "standard":
-      return "info";
+      return "neutral";
     case "premium":
-      return "success";
+      return "info";
     case "enterprise":
-      return "warning";
+      return "success";
     default:
       return "neutral";
   }

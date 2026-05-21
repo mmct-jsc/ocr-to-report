@@ -166,8 +166,8 @@ export function UploadRoute() {
                       e.stopPropagation();
                       setFile(null);
                     }}
-                    className="ml-2 p-1.5 rounded-full hover:bg-muted"
-                    aria-label="remove"
+                    className="ml-2 p-2.5 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Remove selected file"
                   >
                     <X size={14} aria-hidden />
                   </button>
