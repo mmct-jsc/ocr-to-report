@@ -2,6 +2,119 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.2.0] — 2026-05-21
+
+The "fully customizable per tenant" milestone. Every tenant now picks
+their own pipeline, tunes SLA fields above the tier preset, uploads
+their own xlsx templates, and edits raw profile-vocabulary patches —
+all through the Settings page, all without code changes. None of this
+is a fork of the engine; it's the override resolver shipped in v0.1.0
+finally wired through the request path, exposed via REST, mirrored in
+both SDKs, and surfaced in the web console.
+
+### Added
+
+- **`/v1/tenant/config` CRUD.** `GET` returns the resolved view (tier
+  preset with SLA patches applied) plus the raw patch lists per scope.
+  `POST /v1/tenant/config:preview` applies the same body without
+  persisting — the diff editor in the console uses it for live
+  "what would saving do?" previews. `PUT /v1/tenant/config` writes
+  per-scope replace-semantic; SLA patches dry-run through strict
+  Pydantic re-validation before persistence, so an out-of-range
+  threshold is rejected with a 400 instead of producing a corrupt
+  row. Direct `pipeline_id` writes ride this endpoint too.
+
+- **`POST /v1/templates/{target_id}/{template_key}` xlsx upload.**
+  Multipart `template_file`. Three-stage validation: ZIP magic bytes,
+  then `openpyxl.load_workbook` round-trip, then storage at
+  `tenant/{tenant_id}/templates/{target_id}/{template_key}/<sha256>.xlsx`.
+  Writes the override row by **merging** the new
+  `templates[<key>].blob_key` patch into any existing target-scope row
+  so co-located vocabulary patches survive. `DELETE` reverts to the
+  shipped template (best-effort blob cleanup).
+
+- **Override resolver wired into the request path.** New
+  `ResolvedTenantConfig` dataclass + `get_resolved_tenant_config`
+  per-request dependency in `api.deps`. Memoized on `request.state` so
+  multiple deps in the same request share a single DB read. The
+  transcripts router consumes `get_current_sla` (resolved) instead of
+  `resolve_sla_for_tenant` (un-patched), so tenant overrides actually
+  influence live jobs.
+
+- **Postgres integration workflow.** `.github/workflows/integration.yml`
+  spins up postgres 16 + redis 7 service containers and runs the
+  `@pytest.mark.integration` slice on every push to `main` and every
+  PR. The flagship test (`test_v0_2_0_integration.py`) walks the full
+  customization stack against real postgres: SLA patch + pipeline
+  switch + target override + custom template upload in one PUT, then
+  a transcript job whose rendered xlsx carries the uploaded
+  template's watermark. Catches dialect drift (JSONB column types,
+  the `SET LOCAL app.tenant_id` GUC) that the sqlite unit suite can't.
+
+- **SDK exposure (TS + Py).** Both clients gain `TenantConfigResource`
+  (`get`/`preview`/`replace`) and an extended `TemplatesResource` with
+  `upload(...)` + `delete(...)`. Public types: `OverridePatch`,
+  `TenantConfigUpdate`, `TenantConfigResponse`,
+  `CustomTemplateResponse`. URL components are `encodeURIComponent`'d
+  so target_ids with slashes or spaces survive path composition.
+
+- **Web Settings — 5 tabs.** General (the existing connection /
+  appearance cards), Pipeline (radio list of shipped pipelines with
+  summaries), SLA (per-field override toggles for
+  `confidence_threshold`, `park_low_confidence`, `retention_days`,
+  `provider_policy`), Templates (drag-and-drop xlsx upload per
+  `(target_id, template_key)` slot), Vocabulary (raw JSON-patch
+  editor for `profile_overrides`). New `Tabs` primitive
+  (`web/src/components/ui/tabs.tsx`) — full WAI-ARIA "tabs" pattern,
+  keyboard nav (Arrow/Home/End), roving tabindex; hand-rolled, no
+  Radix.
+
+- **First alembic migrations.** `migrations/versions/0001_baseline.py`
+  baselines the 10 shipped tables; `0002_tenant_overrides.py` adds the
+  `tenant_overrides` table + its `(tenant_id, scope, target_id)`
+  unique constraint. Cross-dialect (sqlite + postgres) shapes; CI
+  runs `alembic upgrade head` against postgres on every push.
+
+- **Ops hardening alongside v0.2.0.** Release smoke job now pulls +
+  cosign-verifies all three published images (api, worker, web) and
+  curls the web image's `/` to confirm nginx actually serves 200.
+  Non-gating `Trivy scan (MEDIUM, informational)` step gives
+  visibility on incoming risks without flapping the gate. Every
+  workflow opts into Node 24 ahead of the June 2026 default flip via
+  `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`.
+
+### Changed
+
+- **`resolve_sla_for_tenant` is now the un-patched-baseline accessor.**
+  Code paths that consumed it directly (the transcripts router)
+  switched to `get_current_sla` so they get the resolved view. The
+  old function stays as the explicit "give me the tier preset before
+  overrides" door — useful for diff-preview shapes.
+
+- **Multi-arch web image builds natively, not under emulation.** The
+  Vite/TS build stage now uses `FROM --platform=$BUILDPLATFORM` so the
+  builder runs on the host arch once; the resulting static bundle is
+  copied into both per-arch `nginx:1.27-alpine` runtimes. Cut the
+  release web build from a 30-min qemu stall to ~90 seconds.
+
+### Migration notes
+
+- No database migrations land automatically on boot. Operators run
+  `alembic upgrade head` (or set `OCR2R_AUTO_MIGRATE_ON_BOOT=true` for
+  development). The schema added in this release is additive — no
+  existing tables changed.
+
+- API key holders without any patch rows see identical behavior to
+  v0.1.0; the resolver short-circuits on the empty-patches path. The
+  `pipeline_id` column already existed on `tenants`; v0.2.0 just
+  exposes a write surface for it.
+
+- TS SDK callers using `client.templates.list()` are unaffected; the
+  new `upload`/`delete` methods are additive. Python SDK callers
+  importing from `ocr_to_report.sdk_py` gain `TenantConfigResponse`,
+  `TenantConfigUpdate`, `CustomTemplateResponse` types — no existing
+  imports moved.
+
 ## [0.1.0+resilience] — 2026-05-20
 
 Defense-in-depth for the empty-volume-silently-500s failure mode. After a

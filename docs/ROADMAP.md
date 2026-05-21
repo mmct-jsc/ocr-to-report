@@ -2,10 +2,11 @@
 
 | Owner | QuocTran |
 |---|---|
-| Last updated | 2026-04-29 |
-| Current version | `v0.1.0+cors` |
-| Next milestone | `v0.2.0` — Per-tenant customization |
-| Plan for next milestone | [`docs/plans/2026-04-29-v0.2.0-tenant-overrides.md`](plans/2026-04-29-v0.2.0-tenant-overrides.md) |
+| Last updated | 2026-05-21 |
+| Current version | `v0.2.0` |
+| Next milestone | `v0.3.0` — Provider choice + BYOK |
+| Plan for next milestone | TBD (open with `superpowers:brainstorming` when ready). |
+| Most recent plan executed | [`docs/plans/2026-04-29-v0.2.0-tenant-overrides.md`](plans/2026-04-29-v0.2.0-tenant-overrides.md) — all 15 tasks shipped 2026-05-21. |
 
 This document maps the full product trajectory from the shipped MVP through
 General Availability. Each row in [§3](#3-version-trajectory) names a
@@ -90,6 +91,26 @@ screenshot gallery), tag-triggered release pipeline at
 `.github/workflows/release.yml` (multi-arch GHCR push, SBOM, cosign
 keyless signing, GitHub Release auto-extracted from CHANGELOG), and
 this version of the roadmap. 58 Python + 15 TS tests passing.
+
+### Shipped — `v0.2.0` (2026-05-21)
+
+Per-tenant customization — the foundation every later release depends
+on. The override resolver was already on the shelf in v0.1.0; v0.2.0
+finally wires it into the request path, exposes CRUD via
+`/v1/tenant/config`, mirrors it in both SDKs, and surfaces five tabs
+in the web Settings page (General / Pipeline / SLA / Templates /
+Vocabulary). Custom xlsx uploads land in the blob store + override
+the renderer; pipeline + SLA-field overrides influence live jobs.
+
+First real Alembic migrations + a postgres integration workflow shipped
+in the same cycle, so JSONB columns and the `SET LOCAL app.tenant_id`
+GUC are now exercised against a real postgres on every PR. Multi-arch
+release builds dropped the web image from a 30-min qemu stall to ~90
+seconds via `--platform=$BUILDPLATFORM`.
+
+Full v0.2.0 walkthrough: [`docs/v0.2.0-customization-guide.md`](v0.2.0-customization-guide.md).
+Plan executed: [`docs/plans/2026-04-29-v0.2.0-tenant-overrides.md`](plans/2026-04-29-v0.2.0-tenant-overrides.md).
+569 Python tests passing + 21 TS SDK tests.
 
 ---
 
