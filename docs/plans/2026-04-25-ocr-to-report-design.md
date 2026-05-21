@@ -230,23 +230,20 @@ Each phase is self-contained, demoable, leaves CI green, leaves trunk releasable
 all security scans clean, docs updated, demoable command produces expected
 output.
 
-| # | Phase | Days | Demoable artifact |
-|---|---|---|---|
-| 0 | Bootstrap | 1 | `make dev` brings up empty stack; `curl /health` → 200; CI passes |
-| 1 | Core domain types + PII + redaction | 2 | `pytest packages/core` 200+ tests pass; mypy strict clean |
-| 2 | Profiles + targets + mapping engine + Polish + US-HS Grade 9 | 3 | YAML-driven Polish→US-HS mapping snapshot test passes |
-| 3 | Vision adapters + image pipeline + result cache (Anthropic full) | 3 | `python -m ...adapters.vision` on anonymized fixture → valid `CanonicalTranscript` |
-| 4 | Pipeline engine + steps + openpyxl Excel renderer + `default_v1` | 3 | CLI: `process sample.pdf` → snapshot-matching `output.xlsx` |
-| 5 | Persistence: Postgres + RLS + envelope encryption + blob + audit chain | 3 | Integration tests pass; manual SQL injection cannot cross tenants |
-| 6 | REST API: auth, rate limit, idempotency, endpoints, webhooks, OpenAPI | 4 | `curl POST /v1/transcripts -F file=@…` returns extraction + Excel; webhook fires |
-| 7 | Async worker + Arq queue + Anthropic Batch API + retention cron | 2 | `POST /v1/transcripts:batch` of 50 PDFs completes overnight at half cost |
-| 8 | SLA tiers + tenant config + custom pipelines + manual review | 2 | Premium tenant 0.95 threshold parks low-confidence job; reviewer approves; render |
-| 9 | SDKs (Py + TS) + CLI + MCP server | 3 | All four surfaces produce identical output for the same input |
-| 10 | Observability: OTel, Prometheus, SLOs, alerts, Grafana dashboard | 2 | Dashboard shows per-tenant cost/latency/error/confidence; SLO breach alerts |
-| 11 | Compliance + hardening + v0.1.0 release | 2 | All scans clean; SBOM; signed images; GDPR DSRs working; FERPA log live |
-
-**Total**: ~30 engineer-days. ~6 weeks at 1 fulltime engineer; ~3–4 weeks
-parallelized after Phase 2 across two engineers.
+| # | Phase | Demoable artifact |
+|---|---|---|
+| 0 | Bootstrap | `make dev` brings up empty stack; `curl /health` → 200; CI passes |
+| 1 | Core domain types + PII + redaction | `pytest packages/core` 200+ tests pass; mypy strict clean |
+| 2 | Profiles + targets + mapping engine + Polish + US-HS Grade 9 | YAML-driven Polish→US-HS mapping snapshot test passes |
+| 3 | Vision adapters + image pipeline + result cache (Anthropic full) | `python -m ...adapters.vision` on anonymized fixture → valid `CanonicalTranscript` |
+| 4 | Pipeline engine + steps + openpyxl Excel renderer + `default_v1` | CLI: `process sample.pdf` → snapshot-matching `output.xlsx` |
+| 5 | Persistence: Postgres + RLS + envelope encryption + blob + audit chain | Integration tests pass; manual SQL injection cannot cross tenants |
+| 6 | REST API: auth, rate limit, idempotency, endpoints, webhooks, OpenAPI | `curl POST /v1/transcripts -F file=@…` returns extraction + Excel; webhook fires |
+| 7 | Async worker + Arq queue + Anthropic Batch API + retention cron | `POST /v1/transcripts:batch` of 50 PDFs completes overnight at half cost |
+| 8 | SLA tiers + tenant config + custom pipelines + manual review | Premium tenant 0.95 threshold parks low-confidence job; reviewer approves; render |
+| 9 | SDKs (Py + TS) + CLI + MCP server | All four surfaces produce identical output for the same input |
+| 10 | Observability: OTel, Prometheus, SLOs, alerts, Grafana dashboard | Dashboard shows per-tenant cost/latency/error/confidence; SLO breach alerts |
+| 11 | Compliance + hardening + v0.1.0 release | All scans clean; SBOM; signed images; GDPR DSRs working; FERPA log live |
 
 **Parallelization (post-Phase 2)**:
 - Track A: 3 → 4 → 7 (vision/pipeline/worker)
