@@ -7,7 +7,14 @@
 # all covered by tmpfs in compose) and runs as a non-root user.
 
 # ─────────────────────────── Stage 1: builder ────────────────
-FROM node:20-alpine AS builder
+# Pin the builder to the host's native arch via $BUILDPLATFORM. The Vite/TS
+# build emits platform-agnostic JS/HTML/CSS — there's no reason to JIT-emulate
+# the entire TypeScript compile through qemu just to satisfy a multi-arch
+# manifest. Without this, an arm64 build leg under x86_64 buildkit was taking
+# 30+ minutes (qemu user-mode emulation of node) and timing out the release
+# pipeline. With it, the build runs natively once and the resulting bundle is
+# copied into both the amd64 and arm64 runtime stages below.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
 
 ENV CI=1 \
     NPM_CONFIG_FUND=false \
