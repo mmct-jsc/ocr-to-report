@@ -198,6 +198,18 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
         # ``templates[<key>].blob_key`` patch. Fetch those bytes from
         # blob storage and hand them to the renderer; otherwise the
         # shipped on-disk template is used.
+        #
+        # SECURITY: The blob_key value from a patch is tenant-supplied
+        # (PUT /v1/tenant/config accepts arbitrary target_overrides
+        # patches). Without this prefix check, a tenant could craft a
+        # patch like ``{"op": "set",
+        # "path": "templates[grade_9].blob_key",
+        # "value": "tenant/<OTHER>/templates/.../sha.xlsx"}`` and have
+        # the renderer fetch+use another tenant's blob. We enforce that
+        # the key MUST live under this tenant's prefix; defense-in-depth
+        # alongside the matching write-time guard in tenant_config.py
+        # PUT.
+        expected_blob_prefix = f"tenant/{repos.tenant.id}/templates/"
         override_bytes: bytes | None = None
         override_patches = resolved_config.target_overrides.get(target_id, [])
         for patch in override_patches:
@@ -207,8 +219,14 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
                 and patch.get("path") == f"templates[{render_data.template_key}].blob_key"
             ):
                 blob_key = patch.get("value")
-                if isinstance(blob_key, str):
+                if isinstance(blob_key, str) and blob_key.startswith(expected_blob_prefix):
                     override_bytes = await state.blob_store.get(blob_key)
+                # If the key is missing the expected prefix the patch is
+                # suspicious — fall through to the shipped template
+                # rather than honoring it. The matching PUT-time check
+                # should have rejected the write; reaching here means a
+                # row leaked past that guard (manual SQL, schema
+                # migration, race) and we must still refuse.
                 break
         renderer = XlsxRenderer(state.bundle_roots[target_id])
         output_blob = renderer(target_bundle, render_data, template_override_bytes=override_bytes)

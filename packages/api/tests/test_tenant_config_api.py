@@ -324,3 +324,112 @@ def test_put_rejects_malformed_profile_patch_wire_format(
         },
     )
     assert r.status_code == 400, r.text
+
+
+# ─── security regressions (from security-review pass) ────────────────
+
+
+def test_put_rejects_foreign_tenant_blob_key_patch(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """Pin the fix for the cross-tenant blob-read finding.
+
+    Pre-fix, a tenant could PUT a ``templates[<key>].blob_key`` patch
+    pointing at any blob in the multi-tenant store, then run a job
+    and have the renderer fetch + use those foreign bytes. Now the PUT
+    handler refuses to persist the row at all.
+    """
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+    foreign_key = (
+        "tenant/00000000-0000-0000-0000-000000000000/templates/"
+        "us-hs.v1/grade_9/deadbeef.xlsx"
+    )
+
+    r = client.put(
+        "/v1/tenant/config",
+        headers=headers,
+        json={
+            "target_overrides": {
+                "us-hs.v1": [
+                    {
+                        "op": "set",
+                        "path": "templates[grade_9].blob_key",
+                        "value": foreign_key,
+                    }
+                ]
+            }
+        },
+    )
+    assert r.status_code == 400, r.text
+    # Confirm nothing was persisted.
+    fresh = client.get("/v1/tenant/config", headers=headers).json()
+    assert "us-hs.v1" not in fresh["target_overrides"]
+
+
+def test_preview_rejects_foreign_tenant_blob_key_patch(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """Same guard fires on :preview so the UI surfaces the error pre-Save."""
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+    foreign_key = (
+        "tenant/00000000-0000-0000-0000-000000000000/templates/"
+        "us-hs.v1/grade_9/deadbeef.xlsx"
+    )
+
+    r = client.post(
+        "/v1/tenant/config:preview",
+        headers=headers,
+        json={
+            "target_overrides": {
+                "us-hs.v1": [
+                    {
+                        "op": "set",
+                        "path": "templates[grade_9].blob_key",
+                        "value": foreign_key,
+                    }
+                ]
+            }
+        },
+    )
+    assert r.status_code == 400, r.text
+
+
+def test_put_rejects_unknown_pipeline_id(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """Pin the fix for the pipeline-id path-traversal finding.
+
+    Pre-fix the handler wrote any string verbatim into
+    ``tenant.pipeline_id``, leaving the loader to reject it at job
+    time. Now we reject at write-time, so values like
+    ``../../etc/passwd`` never reach the loader.
+    """
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+
+    r = client.put(
+        "/v1/tenant/config",
+        headers=headers,
+        json={"pipeline_id": "../../etc/passwd"},
+    )
+    assert r.status_code == 400, r.text
+    fresh = client.get("/v1/tenant/config", headers=headers).json()
+    assert fresh["pipeline_id"] == "default_v1"
+
+
+def test_put_accepts_known_shipped_pipeline_id(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """Sanity: the validator still permits real shipped pipelines."""
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+
+    r = client.put(
+        "/v1/tenant/config",
+        headers=headers,
+        json={"pipeline_id": "with_manual_review_v1"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["pipeline_id"] == "with_manual_review_v1"

@@ -29,6 +29,7 @@ Scope semantics:
 
 from __future__ import annotations
 
+import re
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -43,7 +44,7 @@ from ocr_to_report.api.deps import (
     resolve_sla_for_tenant,
 )
 from ocr_to_report.api.schemas import TenantConfigResponse, TenantConfigUpdate
-from ocr_to_report.core.errors.domain import ConflictError
+from ocr_to_report.core.errors.domain import ConflictError, ValidationError
 from ocr_to_report.core.overrides import patches_from_wire
 from ocr_to_report.core.sla.resolver import resolve_with_overrides
 
@@ -116,17 +117,17 @@ async def replace_tenant_config(  # noqa: PLR0912 — three independent scope br
     clear a scope, pass an explicit empty list/dict.
     """
     # Validate everything first. ``_resolve_with_replacements`` re-uses
-    # the same code path as ``:preview`` so we get identical 400s.
+    # the same code path as ``:preview`` so we get identical 400s. That
+    # validator now also checks the ``pipeline_id`` against the shipped
+    # catalogue (rejects path-traversal payloads) AND refuses
+    # ``templates[<key>].blob_key`` patches pointing at storage outside
+    # this tenant's prefix. Both happen BEFORE any write hits the DB.
     _resolved_preview = _resolve_with_replacements(state, repos, body)
 
     overrides = TenantOverrideRepo(repos.session)
     tenant_id = repos.tenant.id
 
     # Pipeline switch — direct tenant column write, not a patch row.
-    # Validated lazily: any non-empty string is accepted at write time;
-    # the pipeline loader rejects unknown ids when a job actually runs.
-    # (A future hardening pass can cross-check against
-    # ``state.pipeline_loader.list_available()`` here.)
     #
     # ``repos.tenant`` was loaded inside the auth dep's session and is
     # detached from ``repos.session`` — mutating it directly wouldn't
@@ -219,6 +220,54 @@ async def replace_tenant_config(  # noqa: PLR0912 — three independent scope br
 # ─── helpers ─────────────────────────────────────────────────────────
 
 
+_BLOB_KEY_PATH_RE = re.compile(r"^templates\[(?P<key>[^\[\]]+)\]\.blob_key$")
+
+
+def _list_shipped_pipelines(state: AppState) -> set[str]:
+    """Enumerate the ids of every shipped pipeline yaml under ``pipelines_root``.
+
+    Cheap (single directory listing); called on every PUT that sets
+    ``pipeline_id`` to validate the value isn't a path-traversal payload.
+    """
+    root = state.settings.pipelines_root.resolve()
+    if not root.is_dir():
+        return set()
+    return {p.stem for p in root.glob("*.yaml") if p.is_file()}
+
+
+def _reject_foreign_blob_key_patches(
+    target_overrides: dict[str, list[dict[str, Any]]],
+    expected_prefix: str,
+) -> None:
+    """Refuse ``templates[<key>].blob_key`` patches whose value escapes the tenant prefix.
+
+    Without this guard a tenant can persist a patch pointing at another
+    tenant's uploaded template; the transcripts router would then fetch
+    and use those bytes at render time, leaking the foreign template
+    back to the attacker. We enforce the prefix at the only valid write
+    path (``PUT /v1/tenant/config``); the upload endpoint itself
+    constructs the key from trusted inputs so it's not a vector.
+    """
+    for patches in target_overrides.values():
+        for patch in patches:
+            if not isinstance(patch, dict):
+                continue
+            path = patch.get("path")
+            if not isinstance(path, str):
+                continue
+            match = _BLOB_KEY_PATH_RE.match(path)
+            if match is None:
+                continue
+            value = patch.get("value")
+            if not isinstance(value, str) or not value.startswith(expected_prefix):
+                raise ValidationError(
+                    f"templates[{match.group('key')}].blob_key value must live "
+                    f"under {expected_prefix!r}; refusing to persist a key that "
+                    f"references storage outside this tenant",
+                    path=path,
+                )
+
+
 def _resolve_with_replacements(
     state: AppState,
     repos: RequestRepos,
@@ -231,7 +280,32 @@ def _resolve_with_replacements(
     go through ``resolve_with_overrides`` which re-validates against the
     Pydantic SLA schema — bad values (out-of-range threshold,
     unknown enum) raise ``ValidationError`` → HTTP 400.
+
+    Validates ``pipeline_id`` against the shipped pipeline catalogue —
+    rejects unknown ids (including path-traversal attempts) BEFORE
+    they reach the loader. Validates ``target_overrides`` patches for
+    foreign-blob-key references — see ``_reject_foreign_blob_key_patches``.
     """
+    # Pipeline id: must be one of the shipped pipelines if set. Rejecting
+    # path-traversal-looking values here (``..\\..\\etc/passwd``) closes
+    # the attack surface before the loader sees them.
+    if body.pipeline_id is not None:
+        available = _list_shipped_pipelines(state)
+        if available and body.pipeline_id not in available:
+            raise ValidationError(
+                f"unknown pipeline_id {body.pipeline_id!r}; "
+                f"available: {sorted(available)}",
+                pipeline_id=body.pipeline_id,
+            )
+
+    # Same blob-key prefix check ``replace_tenant_config`` enforces — we
+    # also run it here so the ``:preview`` endpoint reports the same 400
+    # the PUT would, giving the UI a chance to surface the issue before
+    # the user clicks Save.
+    if body.target_overrides is not None:
+        expected_prefix = f"tenant/{repos.tenant.id}/templates/"
+        _reject_foreign_blob_key_patches(body.target_overrides, expected_prefix)
+
     base_sla = resolve_sla_for_tenant(state, repos.tenant)
     sla_patches = body.sla_patches if body.sla_patches is not None else []
     resolved_sla = resolve_with_overrides(base_sla, sla_patches) if sla_patches else base_sla
