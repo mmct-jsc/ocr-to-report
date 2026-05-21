@@ -213,6 +213,47 @@ def test_put_empty_sla_patches_clears_the_override_row(
     assert refreshed["sla"]["confidence_threshold"] != 0.88
 
 
+def test_put_switches_pipeline_id(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """PUT with ``pipeline_id`` writes the tenant column directly."""
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+
+    pre = client.get("/v1/tenant/config", headers=headers).json()
+    assert pre["pipeline_id"] == "default_v1"
+
+    put = client.put(
+        "/v1/tenant/config",
+        headers=headers,
+        json={"pipeline_id": "with_manual_review_v1"},
+    )
+    assert put.status_code == 200, put.text
+    assert put.json()["pipeline_id"] == "with_manual_review_v1"
+
+    fresh = client.get("/v1/tenant/config", headers=headers).json()
+    assert fresh["pipeline_id"] == "with_manual_review_v1"
+
+
+def test_preview_surfaces_pending_pipeline_id_without_persisting(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """Preview surfaces the *would-be* pipeline_id; GET stays on the old one."""
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+
+    preview = client.post(
+        "/v1/tenant/config:preview",
+        headers=headers,
+        json={"pipeline_id": "batch_economy_v1"},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["pipeline_id"] == "batch_economy_v1"
+
+    fresh = client.get("/v1/tenant/config", headers=headers).json()
+    assert fresh["pipeline_id"] == "default_v1"
+
+
 def test_put_persists_target_overrides(
     standard_client: tuple[TestClient, dict[str, Any]],
 ) -> None:

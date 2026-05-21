@@ -33,6 +33,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 
+from ocr_to_report.adapters.db import Tenant
 from ocr_to_report.adapters.db.repositories import TenantOverrideRepo
 from ocr_to_report.api.deps import (
     AppState,
@@ -119,6 +120,24 @@ async def replace_tenant_config(  # noqa: PLR0912 — three independent scope br
 
     overrides = TenantOverrideRepo(repos.session)
     tenant_id = repos.tenant.id
+
+    # Pipeline switch — direct tenant column write, not a patch row.
+    # Validated lazily: any non-empty string is accepted at write time;
+    # the pipeline loader rejects unknown ids when a job actually runs.
+    # (A future hardening pass can cross-check against
+    # ``state.pipeline_loader.list_available()`` here.)
+    #
+    # ``repos.tenant`` was loaded inside the auth dep's session and is
+    # detached from ``repos.session`` — mutating it directly wouldn't
+    # be flushed. Re-fetch the row in the current session so the change
+    # rides the upcoming commit.
+    if body.pipeline_id is not None and body.pipeline_id != repos.tenant.pipeline_id:
+        db_tenant = await repos.session.get(Tenant, repos.tenant.id)
+        if db_tenant is not None:
+            db_tenant.pipeline_id = body.pipeline_id
+        # Keep the in-memory copy aligned so the same-request response
+        # reflects the change without an extra round-trip.
+        repos.tenant.pipeline_id = body.pipeline_id
 
     if body.sla_patches is not None:
         if body.sla_patches:
@@ -215,9 +234,14 @@ def _resolve_with_replacements(
     for patches in target_overrides.values():
         patches_from_wire(patches)
 
+    # Preview surfaces the *pending* pipeline_id when the body sets it,
+    # so the UI's "see the diff before saving" loop shows the user's
+    # intended change rather than the current persisted value.
+    pipeline_id = body.pipeline_id if body.pipeline_id is not None else repos.tenant.pipeline_id
+
     return TenantConfigResponse(
         sla=resolved_sla.model_dump(mode="json"),
-        pipeline_id=repos.tenant.pipeline_id,
+        pipeline_id=pipeline_id,
         sla_patches=list(sla_patches),
         profile_overrides=dict(profile_overrides),
         target_overrides=dict(target_overrides),

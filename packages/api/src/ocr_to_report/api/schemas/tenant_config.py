@@ -31,10 +31,24 @@ class TenantConfigUpdate(BaseModel):
     Every field is optional — sending ``{"sla_patches": [...]}`` replaces
     JUST the SLA patches and leaves profile/target rows alone. To clear
     a scope, send an explicit empty list.
+
+    ``pipeline_id`` is the one direct tenant column written by this
+    endpoint — it's a single value (not a patch list), so a tenant
+    switches between shipped pipelines (``default_v1``,
+    ``with_manual_review_v1``, ``batch_economy_v1``) by sending the
+    new value here.
     """
 
     model_config = ConfigDict(extra="forbid")
 
+    pipeline_id: str | None = Field(
+        default=None,
+        description=(
+            "Replacement pipeline id. Pass one of the shipped pipeline "
+            "ids to switch this tenant's active pipeline. Omit the field "
+            "to leave it unchanged."
+        ),
+    )
     sla_patches: list[dict[str, Any]] | None = Field(
         default=None,
         description=(

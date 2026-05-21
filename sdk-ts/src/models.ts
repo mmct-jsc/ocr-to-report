@@ -124,6 +124,12 @@ export interface OverridePatch {
  * scope, send an explicit empty list.
  */
 export interface TenantConfigUpdate {
+  /**
+   * Replacement pipeline id (e.g., ``default_v1``,
+   * ``with_manual_review_v1``, ``batch_economy_v1``). Direct write to the
+   * tenant column — not a patch list. Omit to leave unchanged.
+   */
+  pipeline_id?: string | null;
   sla_patches?: OverridePatch[] | null;
   profile_overrides?: Record<string, OverridePatch[]> | null;
   target_overrides?: Record<string, OverridePatch[]> | null;
