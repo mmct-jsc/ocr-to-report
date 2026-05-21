@@ -11,10 +11,13 @@ from ocr_to_report.core.overrides.resolver import (
     OverridePatch,
     apply_overrides,
 )
+from ocr_to_report.core.overrides.wire import patch_from_wire, patches_from_wire
 
 __all__ = [
     "OverrideError",
     "OverrideOperation",
     "OverridePatch",
     "apply_overrides",
+    "patch_from_wire",
+    "patches_from_wire",
 ]
