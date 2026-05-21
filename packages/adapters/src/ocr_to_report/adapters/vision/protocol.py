@@ -106,7 +106,12 @@ class VisionAdapter(Protocol):
     name: VisionProvider
     """Provider identifier."""
 
-    async def extract(self, request: VisionRequest) -> ExtractionResult:
+    async def extract(
+        self,
+        request: VisionRequest,
+        *,
+        override_api_key: str | None = None,
+    ) -> ExtractionResult:
         """Extract structured data from the request's images.
 
         Implementations should:
@@ -115,6 +120,13 @@ class VisionAdapter(Protocol):
           (:class:`VisionProviderError`, :class:`OperationTimeoutError`,
           :class:`CircuitOpenError`).
         - Never mutate the request.
+
+        ``override_api_key`` (v0.3.0 BYOK): when set, the adapter
+        constructs a per-call provider client using this credential
+        instead of the long-lived platform client. Implementations
+        that do not support per-call credentials may ignore it (the
+        stub adapters do exactly that — they raise from extract()
+        before any client is touched).
         """
         ...
 

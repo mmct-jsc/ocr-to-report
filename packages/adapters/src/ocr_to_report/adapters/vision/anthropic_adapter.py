@@ -25,6 +25,7 @@ to share a single instance across concurrent requests.
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, cast
@@ -183,50 +184,97 @@ class AnthropicVisionAdapter:
         self._confidence_threshold = confidence_threshold
         self._max_output_tokens = max_output_tokens
 
-    async def extract(self, request: VisionRequest) -> ExtractionResult:
+    async def extract(
+        self,
+        request: VisionRequest,
+        *,
+        override_api_key: str | None = None,
+    ) -> ExtractionResult:
+        """Run the tiered extraction.
+
+        ``override_api_key`` (v0.3.0 BYOK): when set, a one-shot
+        :class:`AsyncAnthropic` client is constructed with that key and
+        used for BOTH the primary attempt AND any confidence-gated
+        fallback. The platform's shared client is never touched. The
+        one-shot client is closed at the end of the call so BYOK
+        traffic does not leak httpx connections.
+        """
         wrapped = _wrap_schema(request.output_schema)
-
-        # Primary attempt
-        result = await self._call(
-            model=self._primary_model,
-            request=request,
-            schema=wrapped,
-        )
-
-        # Fallback if confidence below threshold and a stronger model is configured.
-        if (
-            self._fallback_model is not None
-            and self._fallback_model != self._primary_model
-            and result.confidence < self._confidence_threshold
-        ):
-            fallback = await self._call(
-                model=self._fallback_model,
+        client, own_client = await self._client_for(override_api_key)
+        try:
+            # Primary attempt
+            result = await self._call(
+                client=client,
+                model=self._primary_model,
                 request=request,
                 schema=wrapped,
             )
-            # Combine cost (we did pay for both calls); take the fallback's
-            # extraction since it's the higher-confidence one.
-            combined_usage = _combine_usage(result.usage, fallback.usage)
-            return ExtractionResult(
-                raw_extraction=fallback.raw_extraction,
-                confidence=fallback.confidence,
-                field_confidences=fallback.field_confidences,
-                warnings=[*fallback.warnings, *_promote_primary_warnings(result.warnings)],
-                provider=VisionProvider.ANTHROPIC,
-                model_id=self._fallback_model,
-                usage=combined_usage,
-            )
-        return result
+
+            # Fallback if confidence below threshold and a stronger model is configured.
+            if (
+                self._fallback_model is not None
+                and self._fallback_model != self._primary_model
+                and result.confidence < self._confidence_threshold
+            ):
+                fallback = await self._call(
+                    client=client,
+                    model=self._fallback_model,
+                    request=request,
+                    schema=wrapped,
+                )
+                # Combine cost (we did pay for both calls); take the fallback's
+                # extraction since it's the higher-confidence one.
+                combined_usage = _combine_usage(result.usage, fallback.usage)
+                return ExtractionResult(
+                    raw_extraction=fallback.raw_extraction,
+                    confidence=fallback.confidence,
+                    field_confidences=fallback.field_confidences,
+                    warnings=[*fallback.warnings, *_promote_primary_warnings(result.warnings)],
+                    provider=VisionProvider.ANTHROPIC,
+                    model_id=self._fallback_model,
+                    usage=combined_usage,
+                )
+            return result
+        finally:
+            if own_client:
+                # Best-effort close. The plain ``await client.aclose()``
+                # is the right call against a real AsyncAnthropic; the
+                # try/except keeps tests with non-async mocks usable.
+                aclose = getattr(client, "aclose", None)
+                if aclose is not None:
+                    with contextlib.suppress(TypeError):  # mocks may not be awaitable
+                        await aclose()
+
+    async def _client_for(
+        self,
+        override_api_key: str | None,
+    ) -> tuple[AsyncAnthropic, bool]:
+        """Return ``(client, owned)`` for this extract() call.
+
+        ``owned=True`` means the adapter constructed a one-shot client
+        and is responsible for closing it before returning.
+        """
+        if override_api_key is None:
+            return self._client, False
+        # Lazy import so the package can be imported without the
+        # anthropic SDK installed in tests that don't touch this path.
+        import anthropic  # noqa: PLC0415
+
+        fresh = anthropic.AsyncAnthropic(api_key=override_api_key)
+        return fresh, True
 
     async def aclose(self) -> None:
         # AsyncAnthropic owns its own httpx client; closing here would
         # break callers that share the client. Leave it to the caller.
+        # Per-call BYOK clients are closed inside extract() — they
+        # never reach this method.
         return None
 
     # ── Internals ────────────────────────────────────────────
     async def _call(
         self,
         *,
+        client: AsyncAnthropic,
         model: str,
         request: VisionRequest,
         schema: dict[str, Any],
@@ -271,7 +319,7 @@ class AnthropicVisionAdapter:
         # (e.g., conditional cache_control), so we cast to Any at the
         # boundary. Failure modes are caught by runtime API errors below.
         try:
-            message: Message = await self._client.messages.create(
+            message: Message = await client.messages.create(
                 model=model,
                 max_tokens=self._max_output_tokens,
                 system=cast("Any", system_blocks),

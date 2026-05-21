@@ -31,7 +31,18 @@ class _NotImplementedAdapter(VisionAdapter):
         # without raising. Only extract() raises.
         return
 
-    async def extract(self, request: VisionRequest) -> ExtractionResult:
+    async def extract(
+        self,
+        request: VisionRequest,
+        *,
+        override_api_key: str | None = None,
+    ) -> ExtractionResult:
+        # ``override_api_key`` is accepted for protocol compatibility
+        # (v0.3.0 threads it through ``VisionAdapter.extract``); the
+        # stub doesn't reach a network call and ignores it. When the
+        # real adapter ships in v0.7.0 it will honour BYOK like
+        # AnthropicVisionAdapter does.
+        del override_api_key
         raise ProviderNotConfiguredError(
             f"{self._human_name} vision adapter is scaffolded but not yet "
             "implemented. Set ANTHROPIC_API_KEY to use Claude, or wait "
