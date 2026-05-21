@@ -22,13 +22,15 @@ These tests pin the contract:
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi.testclient import TestClient
 
 from ocr_to_report.api.app import create_app
 from ocr_to_report.api.settings import Settings
 
 
-def _make_settings(**kwargs: object) -> Settings:
+def _make_settings(**kwargs: Any) -> Settings:
     return Settings(env="development", database_url="sqlite+aiosqlite:///:memory:", **kwargs)
 
 
