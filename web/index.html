@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
+    <!--
+      SPA shell: always revalidate against the origin so a stale
+      cached copy never references a bundle hash that no longer
+      exists. GitHub Pages serves an ``ETag`` for conditional
+      requests, so the typical response is 304 Not Modified — cheap
+      and correct. The hashed asset filenames (e.g.
+      ``/assets/index-DPgxlwVC.js``) are content-addressed and stay
+      cached forever; only this top-level shell needs to revalidate.
+    -->
+    <meta http-equiv="cache-control" content="no-cache, must-revalidate" />
+    <meta http-equiv="pragma" content="no-cache" />
     <title>OCR-to-Report — Operations Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
