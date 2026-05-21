@@ -16,6 +16,7 @@ from ocr_to_report.api.schemas.dsr import (
     DSRErasureResponse,
     DSRPortabilityResponse,
 )
+from ocr_to_report.api.schemas.templates import CustomTemplateResponse
 from ocr_to_report.api.schemas.tenant_config import (
     TenantConfigResponse,
     TenantConfigUpdate,
@@ -38,6 +39,7 @@ __all__ = [
     "ApiKeySummary",
     "AuditEntrySummary",
     "BatchAcceptedResponse",
+    "CustomTemplateResponse",
     "DSRAccessResponse",
     "DSRErasureRequest",
     "DSRErasureResponse",

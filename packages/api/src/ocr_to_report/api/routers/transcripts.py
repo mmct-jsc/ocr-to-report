@@ -37,9 +37,11 @@ from ocr_to_report.adapters.vision import (
 from ocr_to_report.api.deps import (
     AppState,
     RequestRepos,
+    ResolvedTenantConfig,
     get_app_state,
     get_current_sla,
     get_repos,
+    get_resolved_tenant_config,
 )
 from ocr_to_report.api.schemas import (
     BatchAcceptedResponse,
@@ -80,6 +82,11 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
     # A tenant that bumps confidence_threshold from 0.85 to 0.95 will now
     # park 0.90 extractions instead of auto-rendering them.
     sla: Annotated[TenantSlaConfig, Depends(get_current_sla)],
+    # ``resolved_config`` carries the raw target-override patch lists per
+    # target_id. We scan them at render time for a
+    # ``templates[<key>].blob_key`` patch — if found, the renderer reads
+    # the uploaded xlsx from blob storage instead of the shipped file.
+    resolved_config: Annotated[ResolvedTenantConfig, Depends(get_resolved_tenant_config)],
     file: Annotated[UploadFile, File(description="PDF or image of the transcript")],
     profile_id: Annotated[str, Form(description="Source profile id")],
     target_id: Annotated[str, Form(description="Target system id")],
@@ -185,9 +192,26 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
             template_override_key=target_template_key,
         )
 
-        # 5. Render xlsx
+        # 5. Render xlsx. If the tenant has uploaded a custom template
+        # for this (target_id, template_key) — see POST /v1/templates/...
+        # — the resolved target_overrides carry a
+        # ``templates[<key>].blob_key`` patch. Fetch those bytes from
+        # blob storage and hand them to the renderer; otherwise the
+        # shipped on-disk template is used.
+        override_bytes: bytes | None = None
+        override_patches = resolved_config.target_overrides.get(target_id, [])
+        for patch in override_patches:
+            if (
+                isinstance(patch, dict)
+                and patch.get("op") == "set"
+                and patch.get("path") == f"templates[{render_data.template_key}].blob_key"
+            ):
+                blob_key = patch.get("value")
+                if isinstance(blob_key, str):
+                    override_bytes = await state.blob_store.get(blob_key)
+                break
         renderer = XlsxRenderer(state.bundle_roots[target_id])
-        output_blob = renderer(target_bundle, render_data)
+        output_blob = renderer(target_bundle, render_data, template_override_bytes=override_bytes)
 
         # 6. Persist input + output blobs
         in_key = f"jobs/{job.id}/input"

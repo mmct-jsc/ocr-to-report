@@ -43,8 +43,15 @@ class XlsxRenderer:
         self,
         target_bundle: TargetBundle,
         render_data: RenderData,
+        *,
+        template_override_bytes: bytes | None = None,
     ) -> bytes:
-        return render_xlsx(target_bundle, render_data, bundle_root=str(self._root))
+        return render_xlsx(
+            target_bundle,
+            render_data,
+            bundle_root=str(self._root),
+            template_override_bytes=template_override_bytes,
+        )
 
 
 def render_xlsx(
@@ -52,8 +59,21 @@ def render_xlsx(
     render_data: RenderData,
     *,
     bundle_root: str,
+    template_override_bytes: bytes | None = None,
 ) -> bytes:
-    """Fill the chosen template's xlsx with the render data and return bytes."""
+    """Fill the chosen template's xlsx with the render data and return bytes.
+
+    When ``template_override_bytes`` is provided, the renderer treats that
+    payload as the template's xlsx file — the on-disk
+    ``bundle_root / template.blob_path`` is bypassed. This is how
+    per-tenant custom-template uploads (v0.2.0 Task 6) route through:
+    the API endpoint stores the uploaded xlsx in the blob store, persists
+    a ``templates[<key>].blob_key`` override patch, and the transcripts
+    router fetches those bytes back and passes them here. The bindings
+    in the target bundle still drive which cells get written — the
+    upload changes the *carrier* (frame, styling, header), not the
+    binding contract.
+    """
     template = next(
         (t for t in target_bundle.templates if t.key == render_data.template_key),
         None,
@@ -70,20 +90,31 @@ def render_xlsx(
             f"render_xlsx called with non-xlsx template (format={template.output_format!r})",
         )
 
-    template_path = Path(bundle_root) / template.blob_path
-    if not template_path.is_file():
-        raise RendererError(
-            f"template file missing: {template_path}",
-            template_path=str(template_path),
-        )
+    if template_override_bytes is not None:
+        size = len(template_override_bytes)
+        try:
+            workbook = load_workbook(filename=io.BytesIO(template_override_bytes))
+        except Exception as e:
+            raise RendererError(
+                f"could not load tenant-uploaded template ({size} bytes): {e}",
+                template_key=render_data.template_key,
+                override_bytes=size,
+            ) from e
+    else:
+        template_path = Path(bundle_root) / template.blob_path
+        if not template_path.is_file():
+            raise RendererError(
+                f"template file missing: {template_path}",
+                template_path=str(template_path),
+            )
 
-    try:
-        workbook = load_workbook(filename=template_path)
-    except Exception as e:
-        raise RendererError(
-            f"could not load template {template_path}: {e}",
-            template_path=str(template_path),
-        ) from e
+        try:
+            workbook = load_workbook(filename=template_path)
+        except Exception as e:
+            raise RendererError(
+                f"could not load template {template_path}: {e}",
+                template_path=str(template_path),
+            ) from e
 
     sheet = workbook.active
     if sheet is None:  # pragma: no cover — openpyxl returns the active sheet

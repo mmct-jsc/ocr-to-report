@@ -24,11 +24,16 @@ def render(
     render_data: RenderData,
     *,
     bundle_root: str,
+    template_override_bytes: bytes | None = None,
 ) -> bytes:
     """Dispatch on the chosen template's ``output_format``.
 
     ``bundle_root`` is the absolute filesystem path to the target bundle
     directory; the renderer reads template files from there.
+
+    ``template_override_bytes`` is the per-tenant uploaded template's
+    bytes when one is in effect — see :func:`render_xlsx` for the
+    semantics. When ``None`` the shipped on-disk template is used.
     """
     template = next(
         (t for t in target_bundle.templates if t.key == render_data.template_key),
@@ -48,7 +53,12 @@ def render(
             render_xlsx,
         )
 
-        return render_xlsx(target_bundle, render_data, bundle_root=bundle_root)
+        return render_xlsx(
+            target_bundle,
+            render_data,
+            bundle_root=bundle_root,
+            template_override_bytes=template_override_bytes,
+        )
 
     raise RendererError(
         f"unsupported output_format {template.output_format!r}",
