@@ -5,7 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/ui/form-field";
 
 interface LocationState {
   from?: { pathname?: string };
@@ -21,32 +22,53 @@ export function LoginRoute() {
   const [url, setUrl] = useState(baseUrl);
   const [show, setShow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Inline, field-scoped errors. Cleared on next submit attempt so the
+  // user sees fresh feedback rather than stale red. Cross-cutting
+  // problems (DNS, offline) still fall through to a toast.
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setKeyError(null);
+    setUrlError(null);
+
     if (!apiKey.trim()) {
-      toast.warn("Missing API key", "Paste a key issued by `ocr-to-report bootstrap`.");
+      setKeyError("Paste a key issued by `ocr-to-report bootstrap`.");
       return;
     }
     setSubmitting(true);
     try {
-      // Validate by hitting /v1/usage; if it 401s the key is bad.
+      // Validate by hitting /v1/usage; if it 401s the key is bad,
+      // anything else (5xx, 404) suggests the URL is wrong.
       const probe = await fetch(`${url.replace(/\/+$/, "")}/v1/usage`, {
         headers: { Authorization: `Bearer ${apiKey.trim()}` },
       });
       if (probe.status === 401) {
-        toast.error("Authentication failed", "The API key was rejected by the server.");
+        setKeyError(
+          "The API rejected this key. Check the value, or run `ocr-to-report bootstrap` to issue a new one.",
+        );
         return;
       }
       if (!probe.ok) {
-        toast.error("API not reachable", `The probe returned ${probe.status}.`);
+        setUrlError(
+          `Server error ${probe.status}. The API answered but couldn't validate the key — verify the base URL is correct.`,
+        );
         return;
       }
       signIn(apiKey.trim(), url.trim() || "/api");
       const next = location.state?.from?.pathname ?? "/dashboard";
       navigate(next, { replace: true });
     } catch (error) {
-      toast.error("Network error", error instanceof Error ? error.message : "unknown");
+      // True network-level failure (DNS, offline, CORS preflight
+      // killed before the response). Stays as a toast because it isn't
+      // specifically about either field.
+      toast.error(
+        "Couldn't reach the API",
+        error instanceof Error
+          ? `${error.message}. Check your network and the base URL.`
+          : "Check your network and the base URL.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -99,60 +121,70 @@ export function LoginRoute() {
               Authenticate with the bearer token issued for your tenant.
             </p>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="base-url">API base URL</Label>
-                <div className="relative">
-                  <Server
-                    size={14}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    id="base-url"
-                    name="base-url"
-                    placeholder="/api"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    autoComplete="url"
-                    className="pl-9"
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Leave as <code className="font-mono">/api</code> when running behind the
-                  Vite proxy; switch to a fully qualified URL in production.
-                </p>
-              </div>
+            <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-5">
+              <FormField
+                label="API base URL"
+                htmlFor="base-url"
+                error={urlError}
+                helper={
+                  <>
+                    Leave as <code className="font-mono">/api</code> when running behind the
+                    Vite proxy; switch to a fully qualified URL in production.
+                  </>
+                }
+              >
+                {(aria) => (
+                  <div className="relative">
+                    <Server
+                      size={14}
+                      aria-hidden
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                      {...aria}
+                      name="base-url"
+                      placeholder="/api"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      autoComplete="url"
+                      className="pl-9"
+                    />
+                  </div>
+                )}
+              </FormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="api-key">API key</Label>
-                <div className="relative">
-                  <KeyRound
-                    size={14}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    id="api-key"
-                    name="api-key"
-                    type={show ? "text" : "password"}
-                    placeholder="sk_test_…"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    autoComplete="off"
-                    className="pl-9 pr-10 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow((s) => !s)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground"
-                    aria-label={show ? "hide key" : "show key"}
-                  >
-                    {show ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
-                  </button>
-                </div>
-              </div>
+              <FormField label="API key" htmlFor="api-key" error={keyError}>
+                {(aria) => (
+                  <div className="relative">
+                    <KeyRound
+                      size={14}
+                      aria-hidden
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                      {...aria}
+                      name="api-key"
+                      type={show ? "text" : "password"}
+                      placeholder="sk_test_…"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      autoComplete="off"
+                      className="pl-9 pr-10 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShow((s) => !s)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 text-muted-foreground hover:text-foreground"
+                      aria-label={show ? "Hide API key" : "Show API key"}
+                    >
+                      {show ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
+                    </button>
+                  </div>
+                )}
+              </FormField>
 
               <Button type="submit" className="w-full" loading={submitting} size="lg">
-                {submitting ? "Verifying…" : "Continue"}
+                {submitting ? "Signing in…" : "Sign in"}
               </Button>
             </form>
 
