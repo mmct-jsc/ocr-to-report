@@ -229,6 +229,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # GHCR packages default to private when the org first publishes
+      # them. The runner's GITHUB_TOKEN has ``read:packages`` from the
+      # workflow's ``packages: write`` declaration, so logging in lets
+      # the smoke pull whether or not the package has been flipped
+      # public. Operators who want anonymous pulls (the demo case) can
+      # also set the package visibility to public — this login keeps
+      # the pipeline working in either state.
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull published api image
         run: docker pull ghcr.io/${{ github.repository_owner }}/ocr2r-api:${{ needs.resolve.outputs.tag }}
       - name: Verify cosign signature
