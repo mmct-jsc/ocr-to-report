@@ -29,6 +29,10 @@ import type {
   AuditEntrySummary,
   CustomTemplateResponse,
   JobSummary,
+  ProviderId,
+  ProviderStatus,
+  ProviderUpsertRequest,
+  ProvidersListResponse,
   SystemOverview,
   TemplatesResponse,
   TenantConfigResponse,
@@ -81,6 +85,7 @@ export class Client {
   public readonly usage: UsageResource;
   public readonly templates: TemplatesResource;
   public readonly tenantConfig: TenantConfigResource;
+  public readonly providers: ProvidersResource;
   public readonly admin: AdminResource;
 
   private readonly baseUrl: string;
@@ -106,6 +111,7 @@ export class Client {
     this.admin = new AdminResource(this);
     this.templates = new TemplatesResource(this);
     this.tenantConfig = new TenantConfigResource(this);
+    this.providers = new ProvidersResource(this);
   }
 
   /**
@@ -406,6 +412,50 @@ class TenantConfigResource {
       headers: { "Content-Type": "application/json" },
     });
     return (await response.json()) as TenantConfigResponse;
+  }
+}
+
+/**
+ * Per-tenant BYOK credentials (v0.3.0). Three operations against
+ * ``/v1/tenant/providers``: list, upsert, delete. The plaintext API
+ * key is never echoed back by the server — ``ProviderStatus`` carries
+ * a redacted view only.
+ */
+class ProvidersResource {
+  constructor(private readonly client: Client) {}
+
+  async list(): Promise<ProvidersListResponse> {
+    const r = await this.client._call({
+      method: "GET",
+      path: "/v1/tenant/providers",
+    });
+    return (await r.json()) as ProvidersListResponse;
+  }
+
+  /**
+   * Upsert a credential for ``provider``. The server validates the
+   * candidate key against the provider's listing endpoint before
+   * persisting; a bad key raises :class:`SDKError` with 400.
+   *
+   * v0.3.0 only routes ``"anthropic"``; PUT for the other three legal
+   * provider ids returns 501.
+   */
+  async upsert(provider: ProviderId, body: ProviderUpsertRequest): Promise<ProviderStatus> {
+    const r = await this.client._call({
+      method: "PUT",
+      path: `/v1/tenant/providers/${encodeURIComponent(provider)}`,
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    return (await r.json()) as ProviderStatus;
+  }
+
+  /** Soft-disable. Idempotent — returns 204 even when no active row. */
+  async delete(provider: ProviderId): Promise<void> {
+    await this.client._call({
+      method: "DELETE",
+      path: `/v1/tenant/providers/${encodeURIComponent(provider)}`,
+    });
   }
 }
 

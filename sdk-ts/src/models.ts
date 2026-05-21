@@ -151,6 +151,43 @@ export interface TenantConfigResponse {
   target_overrides: Record<string, OverridePatch[]>;
 }
 
+// ─── Tenant providers (BYOK, v0.3.0) ─────────────────────────
+/**
+ * Stable provider identifier. v0.3.0 only routes "anthropic"; the
+ * other three are accepted-but-deferred to v0.7.0 (PUT returns 501).
+ */
+export type ProviderId = "anthropic" | "openai" | "google_vertex" | "tesseract";
+
+/**
+ * One redacted credential row.
+ *
+ * ``api_key_redacted`` is never the plaintext: the PUT response carries
+ * the last-4 form ("sk-ant-…XYZ1") for confirmation; the GET list uses
+ * a fixed placeholder ("sk-ant-…••••") so a poll doesn't have to
+ * unwrap the DEK on every read.
+ */
+export interface ProviderStatus {
+  provider: ProviderId;
+  active: boolean;
+  api_key_redacted: string | null;
+  region: string | null;
+  rotated_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+/** Response body for ``GET /v1/tenant/providers``. */
+export interface ProvidersListResponse {
+  providers: ProviderStatus[];
+}
+
+/** Request body for ``PUT /v1/tenant/providers/{provider}``. */
+export interface ProviderUpsertRequest {
+  api_key: string;
+  model_overrides?: Record<string, string> | null;
+  region?: string | null;
+}
+
 // ─── Admin ───────────────────────────────────────────────────
 export interface TenantSummary {
   id: string;

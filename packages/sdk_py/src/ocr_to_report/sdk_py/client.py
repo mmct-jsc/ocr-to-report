@@ -29,6 +29,10 @@ from ocr_to_report.sdk_py.models import (
     BatchAcceptedResponse,
     CustomTemplateResponse,
     JobSummary,
+    ProviderId,
+    ProvidersListResponse,
+    ProviderStatus,
+    ProviderUpsertRequest,
     TemplatesResponse,
     TenantConfigResponse,
     TenantConfigUpdate,
@@ -99,6 +103,7 @@ class Client:
         self.usage = UsageResource(self)
         self.templates = TemplatesResource(self)
         self.tenant_config = TenantConfigResource(self)
+        self.providers = ProvidersResource(self)
 
     def __enter__(self) -> Client:
         return self
@@ -159,6 +164,7 @@ class AsyncClient:
         self.usage = AsyncUsageResource(self)
         self.templates = AsyncTemplatesResource(self)
         self.tenant_config = AsyncTenantConfigResource(self)
+        self.providers = AsyncProvidersResource(self)
 
     async def __aenter__(self) -> AsyncClient:
         return self
@@ -404,6 +410,35 @@ class TenantConfigResource:
         return TenantConfigResponse.model_validate(response.json())
 
 
+class ProvidersResource:
+    """``/v1/tenant/providers`` — per-tenant BYOK credentials (v0.3.0).
+
+    The server never echoes the plaintext key back: list responses use a
+    fixed placeholder, the PUT response carries a last-4 redaction only.
+    """
+
+    def __init__(self, client: Client) -> None:
+        self._client = client
+
+    def list(self) -> ProvidersListResponse:
+        response = self._client._call("GET", "/v1/tenant/providers")
+        return ProvidersListResponse.model_validate(response.json())
+
+    def upsert(self, provider: ProviderId, body: ProviderUpsertRequest) -> ProviderStatus:
+        """Upsert + validate. Server runs a /v1/models probe against the
+        candidate key before persisting; a bad key surfaces as a 400."""
+        response = self._client._call(
+            "PUT",
+            f"/v1/tenant/providers/{provider}",
+            json_body=body.model_dump(mode="json", exclude_none=True),
+        )
+        return ProviderStatus.model_validate(response.json())
+
+    def delete(self, provider: ProviderId) -> None:
+        """Soft-disable. Idempotent (204 even when no active row)."""
+        self._client._call("DELETE", f"/v1/tenant/providers/{provider}")
+
+
 # ─── Async resources (mirror the sync ones) ──────────────────
 class AsyncTranscriptsResource:
     def __init__(self, client: AsyncClient) -> None:
@@ -592,9 +627,32 @@ class AsyncTenantConfigResource:
         return TenantConfigResponse.model_validate(response.json())
 
 
+class AsyncProvidersResource:
+    """Async variant of :class:`ProvidersResource`."""
+
+    def __init__(self, client: AsyncClient) -> None:
+        self._client = client
+
+    async def list(self) -> ProvidersListResponse:
+        response = await self._client._call("GET", "/v1/tenant/providers")
+        return ProvidersListResponse.model_validate(response.json())
+
+    async def upsert(self, provider: ProviderId, body: ProviderUpsertRequest) -> ProviderStatus:
+        response = await self._client._call(
+            "PUT",
+            f"/v1/tenant/providers/{provider}",
+            json_body=body.model_dump(mode="json", exclude_none=True),
+        )
+        return ProviderStatus.model_validate(response.json())
+
+    async def delete(self, provider: ProviderId) -> None:
+        await self._client._call("DELETE", f"/v1/tenant/providers/{provider}")
+
+
 __all__ = [
     "AsyncClient",
     "AsyncJobsResource",
+    "AsyncProvidersResource",
     "AsyncTemplatesResource",
     "AsyncTenantConfigResource",
     "AsyncTranscriptsResource",
@@ -602,6 +660,7 @@ __all__ = [
     "AsyncWebhooksResource",
     "Client",
     "JobsResource",
+    "ProvidersResource",
     "TemplatesResource",
     "TenantConfigResource",
     "TranscriptsResource",

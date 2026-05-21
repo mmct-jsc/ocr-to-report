@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+ProviderId = Literal["anthropic", "openai", "google_vertex", "tesseract"]
+"""Stable provider identifier. v0.3.0 only routes 'anthropic'."""
 
 
 class JobSummary(BaseModel):
@@ -189,10 +192,55 @@ class TenantConfigResponse(BaseModel):
     target_overrides: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
 
 
+# ─── Tenant providers (BYOK, v0.3.0) ─────────────────────────
+
+
+class ProviderStatus(BaseModel):
+    """One redacted credential row.
+
+    ``api_key_redacted`` is never the plaintext: PUT responses carry
+    the last-4 form (``sk-ant-…XYZ1``); GET list responses use the
+    fixed placeholder ``sk-ant-…••••`` so polling never has to unwrap
+    the DEK on the read path.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    provider: ProviderId
+    active: bool
+    api_key_redacted: str | None = None
+    region: str | None = None
+    rotated_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ProvidersListResponse(BaseModel):
+    """Body of GET /v1/tenant/providers."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    providers: list[ProviderStatus] = Field(default_factory=list)
+
+
+class ProviderUpsertRequest(BaseModel):
+    """Body for PUT /v1/tenant/providers/{provider}."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    api_key: str
+    model_overrides: dict[str, str] | None = None
+    region: str | None = None
+
+
 __all__ = [
     "BatchAcceptedResponse",
     "CustomTemplateResponse",
     "JobSummary",
+    "ProviderId",
+    "ProviderStatus",
+    "ProviderUpsertRequest",
+    "ProvidersListResponse",
     "TargetInfo",
     "TemplateInfo",
     "TemplatesResponse",

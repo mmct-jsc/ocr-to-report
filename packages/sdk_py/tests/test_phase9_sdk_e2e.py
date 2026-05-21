@@ -475,3 +475,72 @@ async def test_async_templates_upload_round_trip(async_client: AsyncClient) -> N
     )
     assert resp.size_bytes > 0
     await async_client.templates.delete(target_id="us-hs.v1", template_key="grade_9")
+
+
+# ─── v0.3.0 Task 6: providers (BYOK) ─────────────────────────
+
+
+def test_sync_providers_list_starts_empty(sync_client: Client) -> None:
+    """Fresh tenant: no credential rows yet."""
+    out = sync_client.providers.list()
+    assert out.providers == []
+
+
+def test_sync_providers_upsert_then_list_then_delete(
+    sync_client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Full happy-path round-trip: PUT → GET → DELETE.
+
+    Patches the in-process key-validation cache so we don't actually
+    talk to Anthropic — the upsert path tries to validate the candidate
+    key against /v1/models. Bypassing the cache check is equivalent to
+    "the upstream said 200" for the SDK's purposes.
+    """
+    from ocr_to_report.api.routers import providers as providers_mod  # noqa: PLC0415
+    from ocr_to_report.sdk_py.models import ProviderUpsertRequest  # noqa: PLC0415
+
+    monkeypatch.setattr(
+        providers_mod,
+        "_validate_anthropic_key",
+        AsyncMock(return_value=True),
+    )
+
+    status = sync_client.providers.upsert(
+        "anthropic", ProviderUpsertRequest(api_key="sk-ant-sdk-test-ABCD")
+    )
+    assert status.provider == "anthropic"
+    assert status.active is True
+    assert status.api_key_redacted == "sk-ant-…ABCD"
+
+    listed = sync_client.providers.list()
+    assert len(listed.providers) == 1
+    assert listed.providers[0].active is True
+
+    sync_client.providers.delete("anthropic")
+    after = sync_client.providers.list()
+    assert len(after.providers) == 1
+    assert after.providers[0].active is False
+
+
+@pytest.mark.asyncio
+async def test_async_providers_round_trip(
+    async_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Async client exposes the same surface."""
+    from ocr_to_report.api.routers import providers as providers_mod  # noqa: PLC0415
+    from ocr_to_report.sdk_py.models import ProviderUpsertRequest  # noqa: PLC0415
+
+    monkeypatch.setattr(
+        providers_mod,
+        "_validate_anthropic_key",
+        AsyncMock(return_value=True),
+    )
+
+    await async_client.providers.upsert(
+        "anthropic", ProviderUpsertRequest(api_key="sk-ant-async-WXYZ")
+    )
+    listed = await async_client.providers.list()
+    assert len(listed.providers) == 1
+    await async_client.providers.delete("anthropic")

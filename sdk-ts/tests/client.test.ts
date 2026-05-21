@@ -611,3 +611,86 @@ describe("Client.templates.upload", () => {
     expect(fake.calls[0]!.url).toBe("http://test/v1/templates/us-hs.v1/grade_9");
   });
 });
+
+// ─── v0.3.0 Task 6: providers (BYOK) ─────────────────────────────────
+
+describe("Client.providers", () => {
+  it("list hits /v1/tenant/providers with auth and returns the list", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          providers: [
+            {
+              provider: "anthropic",
+              active: true,
+              api_key_redacted: "sk-ant-…••••",
+              region: null,
+              rotated_at: null,
+              created_at: "2026-04-01T00:00:00Z",
+              updated_at: "2026-04-01T00:00:00Z",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    const list = await client.providers.list();
+    expect(list.providers).toHaveLength(1);
+    expect(list.providers[0]!.provider).toBe("anthropic");
+    expect(list.providers[0]!.active).toBe(true);
+    expect(fake.calls[0]!.url).toBe("http://test/v1/tenant/providers");
+    expect(fake.calls[0]!.method).toBe("GET");
+    expect(fake.calls[0]!.headers.get("authorization")).toBe("Bearer sk_test");
+  });
+
+  it("upsert PUTs JSON body with api_key to the provider slot", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          provider: "anthropic",
+          active: true,
+          api_key_redacted: "sk-ant-…XYZ1",
+          region: null,
+          rotated_at: null,
+          created_at: "2026-04-01T00:00:00Z",
+          updated_at: "2026-04-01T00:00:00Z",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    const status = await client.providers.upsert("anthropic", {
+      api_key: "sk-ant-valid-XYZ1",
+    });
+    expect(status.api_key_redacted).toBe("sk-ant-…XYZ1");
+
+    const call = fake.calls[0]!;
+    expect(call.url).toBe("http://test/v1/tenant/providers/anthropic");
+    expect(call.method).toBe("PUT");
+    expect(call.headers.get("content-type")).toBe("application/json");
+    expect(JSON.parse(call.body as string)).toEqual({
+      api_key: "sk-ant-valid-XYZ1",
+    });
+  });
+
+  it("delete DELETEs the provider slot", async () => {
+    const fake = makeFakeFetch(async () => new Response(null, { status: 204 }));
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    await client.providers.delete("anthropic");
+    expect(fake.calls[0]!.method).toBe("DELETE");
+    expect(fake.calls[0]!.url).toBe("http://test/v1/tenant/providers/anthropic");
+  });
+});
