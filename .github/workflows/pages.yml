@@ -32,6 +32,12 @@ concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # Opt the Node.js-based actions (checkout, setup-node, …) onto Node 24
+  # ahead of the June 2026 default flip. See ci.yml for the same env
+  # var + rationale.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build:
     name: Build SPA

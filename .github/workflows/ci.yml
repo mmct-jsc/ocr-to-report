@@ -18,6 +18,10 @@ env:
   UV_VERSION: "0.10.0"
   PYTHON_VERSION: "3.12"
   FORCE_COLOR: "1"
+  # Opt the Node.js-based actions (checkout, setup-uv, …) onto Node 24
+  # ahead of the June 2026 default flip. Removes the deprecation warning
+  # surfaced on every run + proves the workflow survives the bump.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   lint:
@@ -78,8 +82,6 @@ jobs:
       - run: uv python install ${{ env.PYTHON_VERSION }}
       - run: uv sync --all-packages --group dev
       - run: uv run bandit -c pyproject.toml -r packages
-      # CVE-2026-3219 in pip itself has no fixed version; pip is a build-time tool not used
-      # at runtime by this app (we use uv). Re-evaluate on every uv sync.
         # pip-audit exits 1 by default on any real CVE in PyPI deps
         # (we want that). ``--strict`` additionally promotes warnings
         # (like "can't audit editable workspace package") to errors —
@@ -88,11 +90,15 @@ jobs:
         # PyPI dep is audited and still fails the run on a vuln.
         #
         # Ignored:
-        # * CVE-2026-3219 — pip itself; we build with uv at runtime.
-        # * CVE-2026-6357 — pip itself; same rationale.
-        # * PYSEC-2025-183 — pyjwt 2.12.1; no fix version published.
-        #   Re-evaluate on every dep refresh; remove when pyjwt ships
-        #   a patched release.
+        # * CVE-2026-3219 — pip itself (now fixed in pip 26.1). Pulled in
+        #   transitively by pip-api (which pip-audit itself depends on).
+        #   pip is a build-time tool, not used at runtime by this app —
+        #   we use uv everywhere — so the vuln doesn't reach the shipped
+        #   wheel/image. Drop the ignore when pip-api floors >=26.1.
+        # * CVE-2026-6357 — same: pip itself; same rationale + fix path.
+        # * PYSEC-2025-183 — pyjwt 2.12.1; no fix version published as
+        #   of 2026-05-21. Re-evaluate on every dep refresh; remove
+        #   when pyjwt ships a patched release.
       - run: |
           uv run pip-audit --skip-editable \
             --ignore-vuln CVE-2026-3219 \
@@ -162,11 +168,16 @@ jobs:
           load: true
           tags: ocr2r-api:scan
           cache-from: type=gha
-      - name: Trivy scan
+      - name: Trivy scan (gating)
         # Pinned to a real released tag. The action repo uses ``v`` prefix
         # on its tags (``v0.36.0``, ``v0.35.0``, …); the earlier
         # ``0.36.0`` form doesn't resolve. Bump deliberately; ``@master``
         # would be a supply-chain risk.
+        #
+        # This step gates the build: any CRITICAL/HIGH with a known fix
+        # fails the run. Unfixed vulns are ignored — those can only be
+        # mitigated by waiting for upstream, so making them block CI
+        # would create churn without a remediation path.
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ocr2r-api:scan
@@ -174,3 +185,16 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: true
+      - name: Trivy scan (MEDIUM, informational)
+        # Companion non-gating pass: surface MEDIUM findings as a build
+        # annotation without flapping the gate. Includes unfixed so we
+        # see what's accumulating in the base image even if no patch
+        # exists yet. ``continue-on-error`` makes this advisory.
+        uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: true
+        with:
+          image-ref: ocr2r-api:scan
+          format: table
+          severity: MEDIUM
+          exit-code: '0'
+          ignore-unfixed: false
