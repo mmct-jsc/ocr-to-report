@@ -181,11 +181,7 @@ async def _matching_transcripts(
         tenant_id=repos.tenant.id,
         dek=repos.dek,
     )
-    return [
-        t
-        for t in all_transcripts
-        if str(_get_student_name(t)).casefold() == target
-    ]
+    return [t for t in all_transcripts if str(_get_student_name(t)).casefold() == target]
 
 
 async def _matching_jobs(
@@ -220,9 +216,7 @@ async def _matching_jobs(
 
     if not matching_job_ids:
         return []
-    jobs_query = await repos.session.execute(
-        select(Job).where(Job.id.in_(matching_job_ids))
-    )
+    jobs_query = await repos.session.execute(select(Job).where(Job.id.in_(matching_job_ids)))
     return list(jobs_query.scalars().all())
 
 

@@ -88,9 +88,7 @@ async def _run(
         )
         sys.exit(2)
 
-    db_url = database_url or os.environ.get(
-        "OCR2R_DATABASE_URL", "sqlite+aiosqlite:///./ocr2r.db"
-    )
+    db_url = database_url or os.environ.get("OCR2R_DATABASE_URL", "sqlite+aiosqlite:///./ocr2r.db")
     engine = get_engine(db_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -1,0 +1,88 @@
+name: integration
+
+# Real-postgres + real-redis integration tests.
+#
+# The main ci.yml workflow excludes the ``integration`` pytest marker (it
+# runs unit + property tests against in-memory SQLite + fake redis). This
+# workflow re-runs the same suite WITH the marker enabled, against actual
+# service containers, so postgres-specific behavior — JSONB columns, the
+# ``SET LOCAL app.tenant_id`` RLS guc, dialect-sensitive SQL — is exercised
+# on every PR. Without it, dialect drift only surfaces in production.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.10.0"
+  PYTHON_VERSION: "3.12"
+  FORCE_COLOR: "1"
+  # Opt the Node.js-based actions (checkout, setup-uv) onto Node 24 ahead
+  # of the June 2026 default flip. Removes the deprecation warning + proves
+  # the workflow survives the bump.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  postgres-integration:
+    name: pytest -m integration (postgres + redis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Sidecars provided by the GitHub Actions runner. `pg_isready` /
+    # `redis-cli ping` in the health-checks guarantee the services are
+    # accepting connections by the time `uv run pytest` starts.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ocr2r_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ocr2r_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # Tests skip if these aren't set, so devs running `pytest` locally
+      # don't get spurious failures. CI sets them; everyone else opts in.
+      OCR2R_TEST_DB_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ocr2r_test
+      OCR2R_TEST_REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-packages --group dev
+
+      - name: Run integration tests
+        # ``-m integration`` keeps the marker gate explicit. ``-v`` and
+        # ``--tb=long`` give us readable output when a dialect-sensitive
+        # query fails — the whole point of running this suite is to learn
+        # what broke, fast.
+        run: uv run pytest -m integration -v --tb=long

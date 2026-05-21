@@ -50,9 +50,8 @@ def install_tracing(app: FastAPI, settings: Settings) -> None:
     called from both API + worker in the same process during tests),
     this skips the instrumentation step rather than registering twice.
     """
-    endpoint = (
-        os.environ.get("OCR2R_OTLP_ENDPOINT")
-        or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    endpoint = os.environ.get("OCR2R_OTLP_ENDPOINT") or os.environ.get(
+        "OTEL_EXPORTER_OTLP_ENDPOINT"
     )
     if not endpoint:
         return
@@ -76,9 +75,7 @@ def install_tracing(app: FastAPI, settings: Settings) -> None:
             resource=resource,
             sampler=ParentBased(TraceIdRatioBased(sample_ratio)),
         )
-        provider.add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-        )
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
         trace.set_tracer_provider(provider)
 
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)

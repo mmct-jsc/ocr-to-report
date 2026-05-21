@@ -49,10 +49,7 @@ def test_detect_gif() -> None:
 
 
 def test_detect_webp_with_marker() -> None:
-    assert (
-        detect_media_type(b"RIFF\x00\x00\x00\x00WEBP\x00\x00\x00\x00")
-        == "image/webp"
-    )
+    assert detect_media_type(b"RIFF\x00\x00\x00\x00WEBP\x00\x00\x00\x00") == "image/webp"
 
 
 def test_riff_without_webp_marker_is_unknown() -> None:

@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
+    <!--
+      SPA shell: always revalidate against the origin so a stale
+      cached copy never references a bundle hash that no longer
+      exists. GitHub Pages serves an ``ETag`` for conditional
+      requests, so the typical response is 304 Not Modified — cheap
+      and correct. The hashed asset filenames (e.g.
+      ``/assets/index-DPgxlwVC.js``) are content-addressed and stay
+      cached forever; only this top-level shell needs to revalidate.
+    -->
+    <meta http-equiv="cache-control" content="no-cache, must-revalidate" />
+    <meta http-equiv="pragma" content="no-cache" />
     <title>OCR-to-Report — Operations Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,6 +23,27 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <!--
+      Companion to public/404.html — decodes the ``?/`` query-string
+      that 404.html writes for SPA-on-GitHub-Pages deep-link recovery.
+      The script reconstructs the original deep URL and replaces the
+      history entry so React Router sees the real path on mount.
+      On the docker / dev / production-with-nginx deployments the 404
+      shim never fires, so this code is a one-line no-op there.
+    -->
+    <script type="text/javascript">
+      (function () {
+        var l = window.location;
+        if (l.search.charAt(1) !== "/") return;
+        var decoded =
+          l.pathname.replace(/\/$/, "") +
+          "/" +
+          l.search.slice(2).split("&").map(function (s) {
+            return s.replace(/~and~/g, "&");
+          }).join("?").replace(/^\?/, "");
+        window.history.replaceState(null, "", decoded + l.hash);
+      })();
+    </script>
   </head>
   <body class="antialiased">
     <div id="root"></div>

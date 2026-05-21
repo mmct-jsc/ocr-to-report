@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTheme } from "@/lib/theme";
+import { DEPLOY_GUIDE_URL, REPO_URL, isStaticDemo } from "@/lib/deploy";
 
 /**
  * Public-facing demo / feature tour page.
@@ -32,6 +33,19 @@ import { useTheme } from "@/lib/theme";
  * intentionally does NOT use the AppLayout (no sidebar) so it works as
  * a marketing landing target.
  */
+
+/**
+ * Prefix a public-asset path with Vite's resolved ``base`` so the
+ * built URL works on both ``/`` (docker / nginx) and ``/ocr-to-report/``
+ * (GitHub Pages subpath deploy). Without this, ``/demo-assets/foo.png``
+ * 404s on Pages because it resolves to the host root instead of the
+ * project subdirectory.
+ */
+function withBase(path: string): string {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return base + (path.startsWith("/") ? path : `/${path}`);
+}
+
 export function DemoRoute() {
   const { theme, toggle } = useTheme();
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
@@ -72,14 +86,35 @@ export function DemoRoute() {
             </span>
           </div>
           <div className="flex-1" />
-          <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span className={cn("h-2 w-2 rounded-full", apiReachable ? "bg-success" : apiReachable === false ? "bg-danger" : "bg-muted-foreground")} />
-            {apiReachable === null
-              ? "checking…"
-              : apiReachable
-                ? `API healthy${apiVersion ? ` · v${apiVersion}` : ""}`
-                : "API unreachable"}
-          </div>
+          {/* Health indicator is misleading on the static Pages build —
+              there's nothing to be reachable there. Show "Static
+              preview" in muted tone instead of the alarming
+              red "API unreachable". */}
+          {isStaticDemo ? (
+            <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground" aria-hidden />
+              Static preview · no backend
+            </div>
+          ) : (
+            <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  apiReachable
+                    ? "bg-success"
+                    : apiReachable === false
+                      ? "bg-danger"
+                      : "bg-muted-foreground",
+                )}
+                aria-hidden
+              />
+              {apiReachable === null
+                ? "checking…"
+                : apiReachable
+                  ? `API healthy${apiVersion ? ` · v${apiVersion}` : ""}`
+                  : "API unreachable"}
+            </div>
+          )}
           <button
             type="button"
             onClick={toggle}
@@ -88,13 +123,25 @@ export function DemoRoute() {
           >
             {theme === "dark" ? "Light" : "Dark"}
           </button>
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
-          >
-            Sign in
-            <ArrowRight size={14} aria-hidden />
-          </Link>
+          {isStaticDemo ? (
+            <a
+              href={DEPLOY_GUIDE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            >
+              Deploy locally
+              <ArrowRight size={14} aria-hidden />
+            </a>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            >
+              Sign in
+              <ArrowRight size={14} aria-hidden />
+            </Link>
+          )}
         </div>
       </header>
 
@@ -115,14 +162,25 @@ export function DemoRoute() {
         </p>
 
         <div className="flex flex-wrap gap-3 mt-8">
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
-          >
-            <Sparkles size={16} aria-hidden /> Try the live console
-          </Link>
+          {isStaticDemo ? (
+            <a
+              href={DEPLOY_GUIDE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            >
+              <Sparkles size={16} aria-hidden /> Deploy locally in 5 minutes
+            </a>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+            >
+              <Sparkles size={16} aria-hidden /> Try the live console
+            </Link>
+          )}
           <a
-            href="https://github.com/QuocTran/OCR_to_Report_QT"
+            href={REPO_URL}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-medium border border-border hover:bg-muted"
@@ -302,22 +360,64 @@ export function DemoRoute() {
         <div className="rounded-2xl border border-border bg-card p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <h3 className="text-xl md:text-2xl font-semibold tracking-tight">
-              Have a key? Sign in and try it on a real transcript.
+              {isStaticDemo
+                ? "Run it yourself — full stack in under five minutes."
+                : "Have a key? Sign in and try it on a real transcript."}
             </h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-              The whole upload → extract → render → download loop typically completes in
-              under 30 seconds on a clean page; under two minutes for noisy multi-page PDFs.
+              {isStaticDemo ? (
+                <>
+                  This is a static feature tour. <code className="font-mono text-xs">docker compose up -d</code>{" "}
+                  brings up the API, worker, web console, Postgres, and MinIO. Bootstrap a tenant, paste your
+                  Anthropic key, and the whole upload → extract → render → download loop runs end-to-end on
+                  your machine.
+                </>
+              ) : (
+                <>
+                  The whole upload → extract → render → download loop typically completes in under 30 seconds
+                  on a clean page; under two minutes for noisy multi-page PDFs.
+                </>
+              )}
             </p>
           </div>
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-2 h-11 px-6 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 self-start md:self-center"
-          >
-            Open console <ArrowRight size={16} aria-hidden />
-          </Link>
+          {isStaticDemo ? (
+            <a
+              href={DEPLOY_GUIDE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 h-11 px-6 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 self-start md:self-center"
+            >
+              Quick start <ArrowRight size={16} aria-hidden />
+            </a>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 h-11 px-6 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 self-start md:self-center"
+            >
+              Open console <ArrowRight size={16} aria-hidden />
+            </Link>
+          )}
         </div>
-        <p className="text-center text-[11px] text-muted-foreground mt-6">
-          OCR-to-Report · MIT licensed · Demo build
+        <p className="text-center text-[11px] text-muted-foreground mt-6 flex items-center justify-center gap-3 flex-wrap">
+          <span>OCR-to-Report · MIT licensed · Demo build</span>
+          <span aria-hidden>·</span>
+          <a
+            href="https://ko-fi.com/quoctrantrung"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline"
+          >
+            ☕ Buy me a coffee
+          </a>
+          <span aria-hidden>·</span>
+          <a
+            href="https://github.com/mmct-jsc/ocr-to-report"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground"
+          >
+            Source on GitHub
+          </a>
         </p>
       </section>
       </main>
@@ -411,14 +511,14 @@ function Feature({
           <div className="bg-muted/30 p-4 md:p-6 lg:border-l border-border min-h-[200px] flex items-center justify-center">
             <div className="space-y-3">
               <img
-                src={primary}
+                src={withBase(primary)}
                 alt={title}
                 className="w-full rounded-lg border border-border shadow-sm"
                 loading="lazy"
               />
               {secondaryShot && (
                 <img
-                  src={secondaryShot}
+                  src={withBase(secondaryShot)}
                   alt={`${title} (detail)`}
                   className="w-full rounded-lg border border-border shadow-sm"
                   loading="lazy"

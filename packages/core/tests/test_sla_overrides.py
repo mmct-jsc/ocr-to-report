@@ -213,9 +213,7 @@ def test_apply_then_dump_round_trips() -> None:
     )
     # The JSON path is the one the resolver uses internally — round-trip
     # via the same channel to verify symmetry.
-    rehydrated = TenantSlaConfig.model_validate_json(
-        json.dumps(resolved.model_dump(mode="json"))
-    )
+    rehydrated = TenantSlaConfig.model_validate_json(json.dumps(resolved.model_dump(mode="json")))
     assert resolved == rehydrated
 
 

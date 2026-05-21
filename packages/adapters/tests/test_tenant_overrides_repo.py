@@ -56,18 +56,14 @@ async def session() -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def tenant_id(
-    session: AsyncSession, encryptor: EnvelopeEncryptor
-) -> uuid.UUID:
+async def tenant_id(session: AsyncSession, encryptor: EnvelopeEncryptor) -> uuid.UUID:
     tenants = TenantRepo(session, encryptor)
     tenant, _ = await tenants.create(name="Acme", slug="acme")
     return tenant.id
 
 
 @pytest.mark.asyncio
-async def test_upsert_creates_new_row(
-    session: AsyncSession, tenant_id: uuid.UUID
-) -> None:
+async def test_upsert_creates_new_row(session: AsyncSession, tenant_id: uuid.UUID) -> None:
     repo = TenantOverrideRepo(session)
     row = await repo.upsert(
         tenant_id=tenant_id,
@@ -78,9 +74,7 @@ async def test_upsert_creates_new_row(
     assert row.id is not None
     assert row.scope == "sla"
     assert row.target_id is None
-    assert row.patches == [
-        {"op": "set", "path": "confidence_threshold", "value": 0.95}
-    ]
+    assert row.patches == [{"op": "set", "path": "confidence_threshold", "value": 0.95}]
     assert row.enabled is True
 
 
@@ -163,7 +157,9 @@ async def test_list_for_tenant_filters_by_scope(
         patches=[{"op": "set", "path": "x", "value": 1}],
     )
     await repo.upsert(
-        tenant_id=tenant_id, scope="template", target_id="us-hs.v1",
+        tenant_id=tenant_id,
+        scope="template",
+        target_id="us-hs.v1",
         patches=[{"op": "set", "path": "y", "value": 2}],
     )
     only_sla = await repo.list_for_tenant(tenant_id, scope="sla")
@@ -172,9 +168,7 @@ async def test_list_for_tenant_filters_by_scope(
 
 
 @pytest.mark.asyncio
-async def test_delete_removes_row(
-    session: AsyncSession, tenant_id: uuid.UUID
-) -> None:
+async def test_delete_removes_row(session: AsyncSession, tenant_id: uuid.UUID) -> None:
     repo = TenantOverrideRepo(session)
     row = await repo.upsert(
         tenant_id=tenant_id,
@@ -189,9 +183,7 @@ async def test_delete_removes_row(
 
 
 @pytest.mark.asyncio
-async def test_delete_missing_returns_false(
-    session: AsyncSession, tenant_id: uuid.UUID
-) -> None:
+async def test_delete_missing_returns_false(session: AsyncSession, tenant_id: uuid.UUID) -> None:
     repo = TenantOverrideRepo(session)
     deleted = await repo.delete(tenant_id=tenant_id, scope="sla", target_id=None)
     assert deleted is False

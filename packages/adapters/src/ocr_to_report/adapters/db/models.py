@@ -403,7 +403,9 @@ class TenantOverride(Base, TimestampedMixin):
     # JSONB TypeDecorator explicitly. On Postgres this is native JSONB;
     # on SQLite it's JSON.
     patches: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB(), default=list, nullable=False,
+        JSONB(),
+        default=list,
+        nullable=False,
     )
     """JSONB list of ``{op, path, value}`` documents."""
 
@@ -411,12 +413,16 @@ class TenantOverride(Base, TimestampedMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "scope", "target_id",
+            "tenant_id",
+            "scope",
+            "target_id",
             name="uq_tenant_overrides_scope",
         ),
         Index(
             "ix_tenant_overrides_lookup",
-            "tenant_id", "scope", "enabled",
+            "tenant_id",
+            "scope",
+            "enabled",
         ),
     )
 

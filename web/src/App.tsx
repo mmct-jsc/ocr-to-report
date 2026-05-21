@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { isStaticDemo } from "@/lib/deploy";
 import { AppLayout } from "@/components/layout";
 import { LoginRoute } from "@/routes/login";
 import { DemoRoute } from "@/routes/demo";
@@ -18,6 +19,12 @@ import { AdminTenantDetailRoute } from "@/routes/admin-tenant-detail";
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { client } = useAuth();
   const location = useLocation();
+  // Static-demo deploy: no backend exists, so the only useful surface
+  // is /demo. Redirect every auth-walled route there rather than
+  // sending visitors to a broken /login.
+  if (isStaticDemo) {
+    return <Navigate to="/demo" replace />;
+  }
   if (!client) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
@@ -33,7 +40,18 @@ export function App() {
       <Route path="/demo" element={<DemoRoute />} />
       <Route
         path="/login"
-        element={client ? <Navigate to="/dashboard" replace /> : <LoginRoute />}
+        element={
+          isStaticDemo ? (
+            // No backend = no auth. Send visitors back to the feature
+            // tour rather than render a sign-in form that will never
+            // succeed.
+            <Navigate to="/demo" replace />
+          ) : client ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LoginRoute />
+          )
+        }
       />
       <Route
         path="/dashboard"
@@ -124,8 +142,24 @@ export function App() {
         }
       />
       <Route path="/admin" element={<Navigate to="/admin/system" replace />} />
-      <Route path="/" element={<Navigate to={client ? "/dashboard" : "/login"} replace />} />
-      <Route path="*" element={<Navigate to={client ? "/dashboard" : "/login"} replace />} />
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to={isStaticDemo ? "/demo" : client ? "/dashboard" : "/login"}
+            replace
+          />
+        }
+      />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={isStaticDemo ? "/demo" : client ? "/dashboard" : "/login"}
+            replace
+          />
+        }
+      />
     </Routes>
   );
 }

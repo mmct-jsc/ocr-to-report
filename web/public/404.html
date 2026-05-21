@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OCR-to-Report — Operations Console</title>
+    <!--
+      SPA-on-GitHub-Pages redirect shim.
+      GitHub Pages serves this file for any path that isn't a real file.
+      It rewrites the request URL into a single ``?p=…&q=…`` query string,
+      then loads the SPA's index.html. ``index.html`` (below) decodes
+      that query string back into ``history.replaceState`` so the SPA
+      sees the original deep link and React Router renders the right
+      route.
+
+      Convention from the well-known ``rafgraph/spa-github-pages`` shim.
+    -->
+    <script type="text/javascript">
+      // Subdirectory deploys (e.g. mmct-jsc.github.io/ocr-to-report/…)
+      // need ``pathSegmentsToKeep = 1`` so the project base survives
+      // the rewrite. User-pages (foo.github.io/…) would use 0.
+      var pathSegmentsToKeep = 1;
+
+      var l = window.location;
+      l.replace(
+        l.protocol + "//" + l.hostname + (l.port ? ":" + l.port : "") +
+        l.pathname.split("/").slice(0, 1 + pathSegmentsToKeep).join("/") + "/?/" +
+        l.pathname.slice(1).split("/").slice(pathSegmentsToKeep).join("/").replace(/&/g, "~and~") +
+        (l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "") +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>

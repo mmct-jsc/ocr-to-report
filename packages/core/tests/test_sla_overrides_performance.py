@@ -110,10 +110,8 @@ def test_print_measured_numbers() -> None:
         resolve_with_overrides(base, [])
 
     print(  # noqa: T201 — diagnostic helper, skipped by default
-        f"\n3-patch median: {_median_per_call_ms(with_patches) * 1000:.1f}us "
-        f"per call"
+        f"\n3-patch median: {_median_per_call_ms(with_patches) * 1000:.1f}us per call"
     )
     print(  # noqa: T201 — diagnostic helper, skipped by default
-        f"0-patch median: {_median_per_call_ms(without_patches) * 1000:.2f}us "
-        f"per call"
+        f"0-patch median: {_median_per_call_ms(without_patches) * 1000:.2f}us per call"
     )

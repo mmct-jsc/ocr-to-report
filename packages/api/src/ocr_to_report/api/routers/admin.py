@@ -71,9 +71,7 @@ async def system_overview(
         )
         keys_count = len(list(active_keys.scalars().all()))
 
-    queue_depth = (
-        state.queue.pending_count() if hasattr(state.queue, "pending_count") else 0
-    )
+    queue_depth = state.queue.pending_count() if hasattr(state.queue, "pending_count") else 0
 
     return SystemOverview(
         tenants_total=len(all_tenants),
