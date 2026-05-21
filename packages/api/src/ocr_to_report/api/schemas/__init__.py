@@ -16,6 +16,10 @@ from ocr_to_report.api.schemas.dsr import (
     DSRErasureResponse,
     DSRPortabilityResponse,
 )
+from ocr_to_report.api.schemas.tenant_config import (
+    TenantConfigResponse,
+    TenantConfigUpdate,
+)
 from ocr_to_report.api.schemas.transcripts import (
     BatchAcceptedResponse,
     TranscriptExtractionResponse,
@@ -39,6 +43,8 @@ __all__ = [
     "DSRErasureResponse",
     "DSRPortabilityResponse",
     "SystemOverview",
+    "TenantConfigResponse",
+    "TenantConfigUpdate",
     "TenantCreateRequest",
     "TenantSummary",
     "TenantUpdateRequest",

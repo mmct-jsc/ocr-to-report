@@ -252,9 +252,7 @@ async def test_sla_override_bumps_threshold_and_parks_job(
         client.__exit__(None, None, None)
 
 
-async def test_no_override_uses_base_tier_threshold(
-    settings: Settings, db_setup: None
-) -> None:
+async def test_no_override_uses_base_tier_threshold(settings: Settings, db_setup: None) -> None:
     """Companion control: same vision confidence, no override → completes.
 
     Without the override row, the Standard preset's 0.85 threshold lets

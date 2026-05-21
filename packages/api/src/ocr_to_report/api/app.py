@@ -21,6 +21,7 @@ from ocr_to_report.api.routers import (
     dsr_router,
     jobs_router,
     templates_router,
+    tenant_config_router,
     transcripts_router,
     usage_router,
     webhooks_router,
@@ -139,6 +140,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     app.include_router(webhooks_router)
     app.include_router(usage_router)
     app.include_router(templates_router)
+    app.include_router(tenant_config_router)
     app.include_router(dsr_router)
     app.include_router(admin_router)
 
