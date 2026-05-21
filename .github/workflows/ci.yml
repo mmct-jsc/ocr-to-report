@@ -86,9 +86,18 @@ jobs:
         # not what we want. With ``--skip-editable`` + no --strict, the
         # workspace members are silently passed over while every real
         # PyPI dep is audited and still fails the run on a vuln.
-        # ``--ignore-package`` doesn't exist as a pip-audit flag, despite
-        # what an earlier guess assumed.
-      - run: uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219
+        #
+        # Ignored:
+        # * CVE-2026-3219 — pip itself; we build with uv at runtime.
+        # * CVE-2026-6357 — pip itself; same rationale.
+        # * PYSEC-2025-183 — pyjwt 2.12.1; no fix version published.
+        #   Re-evaluate on every dep refresh; remove when pyjwt ships
+        #   a patched release.
+      - run: |
+          uv run pip-audit --skip-editable \
+            --ignore-vuln CVE-2026-3219 \
+            --ignore-vuln CVE-2026-6357 \
+            --ignore-vuln PYSEC-2025-183
 
   test:
     name: Tests + Coverage
