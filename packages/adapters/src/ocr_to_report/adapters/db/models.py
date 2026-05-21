@@ -18,6 +18,15 @@ Added in v0.2.0:
   SLA / template / vocabulary, applied by the override resolver at
   request time.
 
+Added in v0.3.0:
+
+* ``tenant_provider_credentials`` — per-tenant envelope-encrypted
+  Anthropic / provider API keys (BYOK). One active row per
+  ``(tenant, provider)`` enforced by partial unique index.
+* ``usage_records.billing_path`` — ``'platform' | 'byok'``; invoicing
+  ignores BYOK rows because that usage was billed to the tenant's
+  own Anthropic account.
+
 Still deferred to later phases (per Decision 4): ``users`` (JWT auth,
 phase 6), ``profile_versions`` / ``target_versions`` / ``templates``
 (loaded from disk in MVP — phase 8 adds DB-stored custom bundles).
@@ -31,6 +40,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -40,6 +50,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -270,12 +281,25 @@ class UsageRecord(Base, TimestampedMixin):
     cache_creation_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     usd_cost: Mapped[float] = mapped_column(Numeric(12, 6), default=0, nullable=False)
 
+    # v0.3.0: split platform-billed vs BYOK-billed usage. v0.4.0
+    # invoicing ignores ``billing_path == 'byok'`` rows.
+    billing_path: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="platform",
+        server_default="platform",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "tenant_id",
             "period_start",
             "period_end",
             name="uq_usage_tenant_period",
+        ),
+        CheckConstraint(
+            "billing_path IN ('platform', 'byok')",
+            name="ck_usage_records_billing_path",
         ),
     )
 
@@ -427,6 +451,86 @@ class TenantOverride(Base, TimestampedMixin):
     )
 
 
+# ─── tenant_provider_credentials ──────────────────────────────
+class TenantProviderCredential(Base, TimestampedMixin):
+    """Per-tenant envelope-encrypted provider API key (v0.3.0 BYOK).
+
+    The repo's ``upsert`` encrypts the plaintext key with the tenant's
+    DEK, then writes a new row + marks the previous active row inactive
+    in the same transaction. The partial unique index
+    ``ix_tenant_provider_credentials_active`` on ``(tenant_id, provider)
+    WHERE active = TRUE`` enforces "exactly one active credential per
+    (tenant, provider)" at the DB layer; the repo enforces it again
+    inside a single flush for portability with SQLite unit tests.
+
+    ``model_overrides`` and ``region`` ship as columns in v0.3.0 but are
+    not yet read by the resolver — v0.7.0 (provider expansion) consumes
+    model overrides, v0.6.0 / v0.8.0 surfaces consume region.
+
+    Soft-disable via ``active=False`` retains the row for audit history.
+    Hard delete is intentionally NOT exposed — DELETE on the API surface
+    sets ``active=False`` only.
+    """
+
+    __tablename__ = "tenant_provider_credentials"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    """One of: ``anthropic``, ``openai``, ``google_vertex``, ``tesseract``.
+
+    Only ``anthropic`` is a usable provider in v0.3.0 — the others ship
+    as accepted values so v0.7.0 can flip them on without a migration.
+    """
+
+    encrypted_api_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    """The plaintext API key, envelope-encrypted with the tenant DEK.
+
+    Same crypto pattern as :class:`Webhook.secret_encrypted`: the
+    plaintext never lives at rest. Crypto-shred via DEK deletion."""
+
+    model_overrides: Mapped[dict[str, Any]] = mapped_column(
+        default=dict,
+        nullable=False,
+        server_default=text("'{}'"),
+    )
+    """JSONB: opt-in per-call model swap (v0.3.0 ships the column; the
+    resolver ignores it. v0.7.0 will read it.)"""
+
+    region: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """Provider-region pin (v0.3.0: column only; v0.6.0/v0.8.0 consume)."""
+
+    active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default=text("true"),
+        nullable=False,
+    )
+
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    """Set on the OLD row when a rotation occurs (last-key-swap audit)."""
+
+    __table_args__ = (
+        Index(
+            "ix_tenant_provider_credentials_active",
+            "tenant_id",
+            "provider",
+            unique=True,
+            postgresql_where=text("active = TRUE"),
+            sqlite_where=text("active = 1"),
+        ),
+        Index(
+            "ix_tenant_provider_credentials_lookup",
+            "tenant_id",
+            "provider",
+            "active",
+        ),
+    )
+
+
 __all__ = [
     "ApiKey",
     "AuditLog",
@@ -436,6 +540,7 @@ __all__ = [
     "ResultCacheRow",
     "Tenant",
     "TenantOverride",
+    "TenantProviderCredential",
     "Transcript",
     "UsageRecord",
     "Webhook",

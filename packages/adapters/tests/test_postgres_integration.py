@@ -125,6 +125,8 @@ EXPECTED_TABLES = frozenset(
         "idempotency_keys",
         "result_cache",
         "batch_submissions",
+        "tenant_overrides",
+        "tenant_provider_credentials",  # v0.3.0
     }
 )
 

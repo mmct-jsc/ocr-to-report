@@ -62,10 +62,22 @@ def test_baseline_upgrade_creates_all_tables(sqlite_url: str) -> None:
         "result_cache",
         "batch_submissions",
         "tenant_overrides",  # added in 0002
+        "tenant_provider_credentials",  # added in 0003 (v0.3.0)
         "alembic_version",
     }
     missing = expected - tables
     assert not missing, f"missing tables after upgrade head: {missing}"
+
+
+def test_v0_3_0_billing_path_column_lands(sqlite_url: str) -> None:
+    """0004 adds ``billing_path`` to ``usage_records`` with a portable default."""
+    cfg = _make_alembic_config(sqlite_url)
+    command.upgrade(cfg, "head")
+    engine = create_engine(sqlite_url)
+    inspector = inspect(engine)
+    cols = {c["name"] for c in inspector.get_columns("usage_records")}
+    engine.dispose()
+    assert "billing_path" in cols
 
 
 def test_baseline_upgrade_is_idempotent(sqlite_url: str) -> None:
