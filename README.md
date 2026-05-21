@@ -129,6 +129,9 @@ core ← adapters ← {api, worker, cli, mcp}
 - [Architecture](ARCHITECTURE.md) — runtime topology, module boundaries
 - [Security](SECURITY.md) — threat model, reporting policy
 - [Contributing](CONTRIBUTING.md) — dev workflow, test conventions, PR rules
+- [Development Pipeline](docs/DEVELOPMENT_PIPELINE.md) — the 9-stage workflow
+  (requirements → research → approach → TDD code → unit + Playwright tests →
+  perf check → review → security → publish) every change goes through
 - [Budget](docs/BUDGET.md) — production cost model, real benchmark, tier pricing
 - [Roadmap](docs/ROADMAP.md) — version-by-version trajectory from MVP to GA:
   per-tenant workflow / template / SLA overrides (v0.2), provider choice +
