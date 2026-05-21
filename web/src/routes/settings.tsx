@@ -47,7 +47,7 @@ export function SettingsRoute() {
         onValueChange={(v) => setTab(v as SettingsTabId)}
         idPrefix="settings"
       >
-        <TabsList>
+        <TabsList label="Settings sections">
           <TabsTrigger value="general">
             <span className="inline-flex items-center gap-1.5">
               <SettingsIcon size={14} aria-hidden /> General

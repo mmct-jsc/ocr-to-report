@@ -366,12 +366,26 @@ function OverrideRow({
           Tier baseline: <span className="font-mono">{baselineDisplay}</span>
         </p>
       </div>
-      <label className="inline-flex items-center gap-2 self-end pb-2 cursor-pointer">
+      {/*
+        Visible "Override" text doubles as the checkbox's accessible
+        label by virtue of the wrapping ``<label>`` — no separate
+        ``aria-label`` is needed (and adding one would have screen
+        readers announce "Override Confidence threshold Override",
+        repeating the same word). The ``id={toggleId}`` + ``htmlFor``
+        association lets ``<label>`` claim the click target while the
+        visible text drives the AT name. The field-name context comes
+        from the row's overall structure ‒ the FormField above already
+        provides the field label.
+      */}
+      <label
+        htmlFor={`${controlId}-toggle`}
+        className="inline-flex items-center gap-2 self-end pb-2 cursor-pointer"
+      >
         <input
+          id={`${controlId}-toggle`}
           type="checkbox"
           checked={enabled}
           onChange={(e) => onToggle(e.target.checked)}
-          aria-label={`Override ${label}`}
         />
         <span className="text-xs text-muted-foreground">Override</span>
       </label>

@@ -133,10 +133,25 @@ export function Tabs({ value, onValueChange, idPrefix, children, className }: Ta
   );
 }
 
-export function TabsList({ children, className }: { children: ReactNode; className?: string }) {
+export function TabsList({
+  children,
+  className,
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  /**
+   * Accessible name for the tablist (WAI-ARIA "Tabs" pattern §3.4).
+   * Without one, screen readers announce "tab list" with no context.
+   * Required for compliant accessibility; the prop is typed optional
+   * so existing callers don't break, but you SHOULD provide it.
+   */
+  label?: string;
+}) {
   return (
     <div
       role="tablist"
+      aria-label={label}
       className={
         className ??
         "flex items-center gap-1 border-b border-border mb-6 overflow-x-auto"

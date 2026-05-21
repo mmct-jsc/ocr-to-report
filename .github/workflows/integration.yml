@@ -86,3 +86,11 @@ jobs:
         # query fails — the whole point of running this suite is to learn
         # what broke, fast.
         run: uv run pytest -m integration -v --tb=long
+
+      - name: Run contract tests (schemathesis)
+        # ``contract``-marked tests fuzz the public OpenAPI surface with
+        # schemathesis. They run against the in-process FastAPI app, not
+        # the postgres service container, but live in this workflow
+        # because they need the same heavyweight test fixtures and we
+        # don't want them slowing every ci.yml run.
+        run: uv run pytest -m contract -v --tb=long

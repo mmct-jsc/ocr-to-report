@@ -287,18 +287,36 @@ function TemplateSlotRow({
             <span className="text-xs text-muted-foreground">shipped</span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        {/*
+          ``aria-live="polite"`` so the drop-over status change ("Drop
+          xlsx to upload") is announced to screen-reader users when a
+          dragged file enters the row. The visible text otherwise
+          updates silently — sighted users notice the border color
+          change, AT users wouldn't.
+        */}
+        <p className="text-xs text-muted-foreground mt-0.5" aria-live="polite">
           {dragOver
             ? "Drop xlsx to upload"
             : "Drag & drop an .xlsx file or click Upload to replace."}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {/*
+          The drag-and-drop / click-to-upload flow is mouse-driven; the
+          ``Upload`` button below is the keyboard-equivalent path that
+          AT users use. We hide this file input from the AT tree
+          entirely so it doesn't show up as an unlabelled "file upload"
+          control — the Button's ``onClick`` programmatically triggers
+          ``fileInputRef.current.click()``, opening the native browser
+          file picker (which IS accessible).
+        */}
         <input
           id={inputId}
           ref={fileInputRef}
           type="file"
           accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          aria-hidden="true"
+          tabIndex={-1}
           className="sr-only"
           onChange={(e) => handleFiles(e.target.files)}
         />
