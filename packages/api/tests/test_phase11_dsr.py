@@ -326,17 +326,13 @@ def test_dsr_appends_audit_log_entries(
     async def _query() -> list[AuditLog]:
         sm = get_sessionmaker(settings.database_url)
         async with sm() as session:
-            result = await session.execute(
-                select(AuditLog).where(AuditLog.action.like("dsr.%"))
-            )
+            result = await session.execute(select(AuditLog).where(AuditLog.action.like("dsr.%")))
             return list(result.scalars().all())
 
     rows = asyncio.run(_query())
     assert any(r.action == "dsr.access" for r in rows)
     assert any(
-        r.metadata_json.get("ferpa_disclosure") is True
-        for r in rows
-        if r.action == "dsr.access"
+        r.metadata_json.get("ferpa_disclosure") is True for r in rows if r.action == "dsr.access"
     )
 
 

@@ -39,9 +39,7 @@ _MAGIC_BYTES: Final[tuple[tuple[str, bytes], ...]] = (
 )
 
 
-SUPPORTED_MEDIA_TYPES: Final[frozenset[str]] = frozenset(
-    {media for media, _ in _MAGIC_BYTES}
-)
+SUPPORTED_MEDIA_TYPES: Final[frozenset[str]] = frozenset({media for media, _ in _MAGIC_BYTES})
 
 
 def detect_media_type(blob: bytes) -> str | None:

@@ -99,9 +99,7 @@ def test_alert_metric_references_match_declared_collectors() -> None:
     # Histogram and counter suffixes (_bucket/_count/_sum/_total) attach
     # at scrape time, so strip them when comparing against declared base
     # names (prometheus_client also strips _total from Counter._name).
-    canonical = {
-        re.sub(r"_(bucket|count|sum|created|total)$", "", name) for name in referenced
-    }
+    canonical = {re.sub(r"_(bucket|count|sum|created|total)$", "", name) for name in referenced}
     unknown = canonical - declared
     assert not unknown, f"alert YAML references unknown metrics: {sorted(unknown)}"
 

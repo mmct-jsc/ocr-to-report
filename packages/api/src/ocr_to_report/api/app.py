@@ -195,11 +195,7 @@ async def _check_database(database_url: str) -> str:
         return "ready"
     except Exception as e:
         msg = str(e).lower()
-        if (
-            "undefinedtable" in msg
-            or "no such table" in msg
-            or "does not exist" in msg
-        ):
+        if "undefinedtable" in msg or "no such table" in msg or "does not exist" in msg:
             return "schema_missing"
         return "unreachable"
 

@@ -20,13 +20,21 @@ const queryClient = new QueryClient({
   },
 });
 
+// Vite injects ``import.meta.env.BASE_URL`` from the ``base`` config —
+// it's "/" for the docker build and "/ocr-to-report/" for the Pages build.
+// React Router needs the same prefix as ``basename`` so deep links like
+// ``/demo`` resolve to ``/ocr-to-report/demo`` on Pages without changes
+// to route definitions. Strip the trailing slash because BrowserRouter's
+// basename convention wants no trailing slash.
+const ROUTER_BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ToastProvider>
-            <BrowserRouter>
+            <BrowserRouter basename={ROUTER_BASENAME}>
               <App />
             </BrowserRouter>
           </ToastProvider>

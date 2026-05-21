@@ -1,9 +1,16 @@
 # OCR-to-Report
 
+[![CI](https://github.com/mmct-jsc/ocr-to-report/actions/workflows/ci.yml/badge.svg)](https://github.com/mmct-jsc/ocr-to-report/actions/workflows/ci.yml)
+[![Release](https://github.com/mmct-jsc/ocr-to-report/actions/workflows/release.yml/badge.svg)](https://github.com/mmct-jsc/ocr-to-report/actions/workflows/release.yml)
+[![Pages](https://github.com/mmct-jsc/ocr-to-report/actions/workflows/pages.yml/badge.svg)](https://mmct-jsc.github.io/ocr-to-report/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/quoctrantrung)
+
 Schema-driven multi-language transcript-to-report SaaS.
 
 | Status | **v0.1.0** — all 12 phases shipped + production web console |
 |---|---|
+| Live demo | <https://mmct-jsc.github.io/ocr-to-report/demo> (feature tour, no API) |
 | Plan | [`docs/plans/2026-04-25-ocr-to-report-design.md`](docs/plans/2026-04-25-ocr-to-report-design.md) |
 | License | MIT |
 

@@ -12,6 +12,27 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <!--
+      Companion to public/404.html — decodes the ``?/`` query-string
+      that 404.html writes for SPA-on-GitHub-Pages deep-link recovery.
+      The script reconstructs the original deep URL and replaces the
+      history entry so React Router sees the real path on mount.
+      On the docker / dev / production-with-nginx deployments the 404
+      shim never fires, so this code is a one-line no-op there.
+    -->
+    <script type="text/javascript">
+      (function () {
+        var l = window.location;
+        if (l.search.charAt(1) !== "/") return;
+        var decoded =
+          l.pathname.replace(/\/$/, "") +
+          "/" +
+          l.search.slice(2).split("&").map(function (s) {
+            return s.replace(/~and~/g, "&");
+          }).join("?").replace(/^\?/, "");
+        window.history.replaceState(null, "", decoded + l.hash);
+      })();
+    </script>
   </head>
   <body class="antialiased">
     <div id="root"></div>

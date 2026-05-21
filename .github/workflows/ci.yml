@@ -80,7 +80,7 @@ jobs:
       - run: uv run bandit -c pyproject.toml -r packages
       # CVE-2026-3219 in pip itself has no fixed version; pip is a build-time tool not used
       # at runtime by this app (we use uv). Re-evaluate on every uv sync.
-      - run: uv run pip-audit --strict --ignore-vuln CVE-2026-3219
+      - run: uv run pip-audit --strict --skip-editable --ignore-vuln CVE-2026-3219
 
   test:
     name: Tests + Coverage

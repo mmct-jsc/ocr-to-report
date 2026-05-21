@@ -237,8 +237,7 @@ class TranscriptsResource:
         if target_template_key is not None:
             data["target_template_key"] = target_template_key
         files_payload = [
-            ("files", (filename, blob, content_type))
-            for filename, blob, content_type in files
+            ("files", (filename, blob, content_type)) for filename, blob, content_type in files
         ]
         if not files_payload:
             raise ValueError("at least one file is required")
@@ -374,8 +373,7 @@ class AsyncTranscriptsResource:
         if target_template_key is not None:
             data["target_template_key"] = target_template_key
         files_payload = [
-            ("files", (filename, blob, content_type))
-            for filename, blob, content_type in files
+            ("files", (filename, blob, content_type)) for filename, blob, content_type in files
         ]
         if not files_payload:
             raise ValueError("at least one file is required")

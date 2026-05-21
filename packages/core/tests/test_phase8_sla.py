@@ -81,7 +81,7 @@ sync_allowed: {str(cfg.sync_allowed).lower()}
 p95_target_seconds: {cfg.p95_target_seconds}
 provider_policy: {cfg.provider_policy}
 primary_model: {cfg.primary_model}
-fallback_model: {cfg.fallback_model if cfg.fallback_model else 'null'}
+fallback_model: {cfg.fallback_model if cfg.fallback_model else "null"}
 confidence_threshold: {cfg.confidence_threshold}
 park_low_confidence: {str(cfg.park_low_confidence).lower()}
 retention_days: {cfg.retention_days}

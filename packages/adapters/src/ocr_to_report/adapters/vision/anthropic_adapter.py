@@ -155,9 +155,7 @@ def _unwrap_response(
     confidence = max(0.0, min(1.0, float(meta.get("confidence", 0.0))))
     field_confidences = meta.get("field_confidences")
     if field_confidences is not None:
-        field_confidences = {
-            k: max(0.0, min(1.0, float(v))) for k, v in field_confidences.items()
-        }
+        field_confidences = {k: max(0.0, min(1.0, float(v))) for k, v in field_confidences.items()}
     warnings = list(meta.get("warnings", []) or [])
     return response_json, confidence, field_confidences, warnings
 

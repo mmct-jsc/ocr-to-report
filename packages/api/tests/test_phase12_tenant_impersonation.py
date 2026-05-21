@@ -92,9 +92,7 @@ def client(settings: Settings, seeded: dict[str, Any]) -> Iterator[TestClient]:
         yield c
 
 
-def test_admin_can_impersonate_target_tenant(
-    client: TestClient, seeded: dict[str, Any]
-) -> None:
+def test_admin_can_impersonate_target_tenant(client: TestClient, seeded: dict[str, Any]) -> None:
     headers_home = {"Authorization": f"Bearer {seeded['admin_key']}"}
     headers_act = {
         **headers_home,
@@ -109,9 +107,7 @@ def test_admin_can_impersonate_target_tenant(
     assert r_act.status_code == 200, r_act.text
 
 
-def test_non_admin_cannot_impersonate(
-    client: TestClient, seeded: dict[str, Any]
-) -> None:
+def test_non_admin_cannot_impersonate(client: TestClient, seeded: dict[str, Any]) -> None:
     r = client.get(
         "/v1/jobs",
         headers={
@@ -125,9 +121,7 @@ def test_non_admin_cannot_impersonate(
     assert "admin:*" in body["detail"]
 
 
-def test_admin_with_unknown_acting_tenant_404(
-    client: TestClient, seeded: dict[str, Any]
-) -> None:
+def test_admin_with_unknown_acting_tenant_404(client: TestClient, seeded: dict[str, Any]) -> None:
     r = client.get(
         "/v1/jobs",
         headers={
@@ -138,9 +132,7 @@ def test_admin_with_unknown_acting_tenant_404(
     assert r.status_code == 404
 
 
-def test_admin_with_invalid_uuid_in_header_403(
-    client: TestClient, seeded: dict[str, Any]
-) -> None:
+def test_admin_with_invalid_uuid_in_header_403(client: TestClient, seeded: dict[str, Any]) -> None:
     # A bad UUID is treated as a forbidden header rather than an auth
     # failure — the bearer was valid, the impersonation target wasn't.
     r = client.get(
@@ -182,6 +174,4 @@ async def test_impersonation_writes_audit_on_target_tenant(
             .all()
         )
     assert len(rows) >= 1
-    assert all(
-        str(row["tenant_id"]) == str(seeded["target_tenant_id"]) for row in rows
-    )
+    assert all(str(row["tenant_id"]) == str(seeded["target_tenant_id"]) for row in rows)

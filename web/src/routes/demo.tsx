@@ -315,8 +315,26 @@ export function DemoRoute() {
             Open console <ArrowRight size={16} />
           </Link>
         </div>
-        <p className="text-center text-[11px] text-muted-foreground mt-6">
-          OCR-to-Report · MIT licensed · Demo build
+        <p className="text-center text-[11px] text-muted-foreground mt-6 flex items-center justify-center gap-3 flex-wrap">
+          <span>OCR-to-Report · MIT licensed · Demo build</span>
+          <span aria-hidden>·</span>
+          <a
+            href="https://ko-fi.com/quoctrantrung"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline"
+          >
+            ☕ Buy me a coffee
+          </a>
+          <span aria-hidden>·</span>
+          <a
+            href="https://github.com/mmct-jsc/ocr-to-report"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground"
+          >
+            Source on GitHub
+          </a>
         </p>
       </section>
     </div>
