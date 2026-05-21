@@ -80,21 +80,15 @@ jobs:
       - run: uv run bandit -c pyproject.toml -r packages
       # CVE-2026-3219 in pip itself has no fixed version; pip is a build-time tool not used
       # at runtime by this app (we use uv). Re-evaluate on every uv sync.
-        # ``--ignore-package`` per workspace member: pip-audit's
-        # ``--skip-editable`` still errors with ``--strict`` because the
-        # editable package can't be audited at all. Listing each one
-        # explicitly tells pip-audit "we own these, don't try" — and
-        # any future CVE in a real PyPI dep still fails the run.
-      - run: |
-          uv run pip-audit --strict \
-            --ignore-vuln CVE-2026-3219 \
-            --ignore-package ocr-to-report-core \
-            --ignore-package ocr-to-report-adapters \
-            --ignore-package ocr-to-report-api \
-            --ignore-package ocr-to-report-worker \
-            --ignore-package ocr-to-report-cli \
-            --ignore-package ocr-to-report-sdk-py \
-            --ignore-package ocr-to-report-mcp
+        # pip-audit exits 1 by default on any real CVE in PyPI deps
+        # (we want that). ``--strict`` additionally promotes warnings
+        # (like "can't audit editable workspace package") to errors —
+        # not what we want. With ``--skip-editable`` + no --strict, the
+        # workspace members are silently passed over while every real
+        # PyPI dep is audited and still fails the run on a vuln.
+        # ``--ignore-package`` doesn't exist as a pip-audit flag, despite
+        # what an earlier guess assumed.
+      - run: uv run pip-audit --skip-editable --ignore-vuln CVE-2026-3219
 
   test:
     name: Tests + Coverage
@@ -160,12 +154,11 @@ jobs:
           tags: ocr2r-api:scan
           cache-from: type=gha
       - name: Trivy scan
-        # Pinned to a real released tag — ``0.28.0`` was referenced
-        # before but doesn't exist on the action repo. ``0.36.0`` is
-        # the current stable (see github.com/aquasecurity/trivy-action
-        # /releases). Bump deliberately; ``@master`` would be a
-        # supply-chain risk.
-        uses: aquasecurity/trivy-action@0.36.0
+        # Pinned to a real released tag. The action repo uses ``v`` prefix
+        # on its tags (``v0.36.0``, ``v0.35.0``, …); the earlier
+        # ``0.36.0`` form doesn't resolve. Bump deliberately; ``@master``
+        # would be a supply-chain risk.
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ocr2r-api:scan
           format: table
