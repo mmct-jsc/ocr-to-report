@@ -436,7 +436,7 @@ class ResolvedTenantConfig:
 async def get_resolved_tenant_config(
     request: Request,
     state: Annotated[AppState, Depends(get_app_state)],
-    auth: Annotated[tuple[ApiKey, Tenant, bytes], Depends(authenticate)],
+    repos: Annotated[RequestRepos, Depends(get_repos)],
 ) -> ResolvedTenantConfig:
     """Resolve per-tenant overrides on top of the tier preset.
 
@@ -444,6 +444,13 @@ async def get_resolved_tenant_config(
     request that touches multiple endpoints (or a single handler that
     reaches for both SLA + pipeline + target overrides) only pays the
     one DB round-trip.
+
+    Reads ride :class:`RequestRepos.session` rather than opening a
+    second tenant-scoped session — saves a connection-pool slot per
+    request and guarantees the resolved view sees the same snapshot as
+    the repos (avoids the cross-session read/write skew where a PUT on
+    /v1/tenant/config commits but the concurrent /v1/transcripts
+    resolver sees the pre-PUT state).
 
     Patches arrive in the DB wire format (``{op, path, value}``) and are
     delegated to :func:`core.sla.resolver.resolve_with_overrides` for
@@ -455,31 +462,28 @@ async def get_resolved_tenant_config(
     if cached is not None:
         return cached  # type: ignore[no-any-return]
 
-    _api_key, tenant, _dek = auth
-    base_sla = resolve_sla_for_tenant(state, tenant)
+    base_sla = resolve_sla_for_tenant(state, repos.tenant)
 
     sla_patches: list[dict[str, Any]] = []
     profile_overrides: dict[str, list[dict[str, Any]]] = {}
     target_overrides: dict[str, list[dict[str, Any]]] = {}
 
-    sm = get_sessionmaker(state.settings.database_url)
-    async with tenant_scoped_session(sm, tenant.id) as session:
-        rows = await TenantOverrideRepo(session).list_for_tenant(tenant.id)
-        for row in rows:
-            if row.scope == "sla":
-                sla_patches.extend(row.patches)
-            elif row.scope == "profile" and row.target_id is not None:
-                profile_overrides.setdefault(row.target_id, []).extend(row.patches)
-            elif row.scope == "target" and row.target_id is not None:
-                target_overrides.setdefault(row.target_id, []).extend(row.patches)
-            # Other scopes (e.g. ``template``, ``pipeline``) are read by
-            # the dedicated callers in Tasks 5 + 6 — don't snag them here.
+    rows = await TenantOverrideRepo(repos.session).list_for_tenant(repos.tenant.id)
+    for row in rows:
+        if row.scope == "sla":
+            sla_patches.extend(row.patches)
+        elif row.scope == "profile" and row.target_id is not None:
+            profile_overrides.setdefault(row.target_id, []).extend(row.patches)
+        elif row.scope == "target" and row.target_id is not None:
+            target_overrides.setdefault(row.target_id, []).extend(row.patches)
+        # Other scopes (e.g. ``template``, ``pipeline``) are read by
+        # the dedicated callers in Tasks 5 + 6 — don't snag them here.
 
     resolved_sla = resolve_with_overrides(base_sla, sla_patches) if sla_patches else base_sla
 
     config = ResolvedTenantConfig(
         sla=resolved_sla,
-        pipeline_id=tenant.pipeline_id,
+        pipeline_id=repos.tenant.pipeline_id,
         profile_overrides=profile_overrides,
         target_overrides=target_overrides,
     )

@@ -274,7 +274,19 @@ async def delete_custom_template(
 
     # Find the blob_key in the row's patch list. Multiple template keys
     # share one row per target_id, so scan rather than assume index 0.
+    # When the target_id row exists but carries no patch for THIS
+    # template_key (e.g. only ``grade_9`` is overridden but the caller
+    # is DELETE-ing ``grade_10``), we have to 404 explicitly — without
+    # this guard the handler falls through to a no-op upsert that leaves
+    # the row unchanged but returns 204, lying to the caller about
+    # whether anything actually got deleted.
     blob_key = _blob_key_from_patches(row.patches, template_key)
+    if blob_key is None:
+        raise NotFoundError(
+            f"no custom template uploaded for {target_id!r}/{template_key!r}",
+            target_id=target_id,
+            template_key=template_key,
+        )
 
     # Mutate the row's patch list to drop just this template_key's entry.
     remaining = [p for p in row.patches if not _is_blob_key_set_for(p, template_key)]

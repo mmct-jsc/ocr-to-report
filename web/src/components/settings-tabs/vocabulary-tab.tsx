@@ -38,6 +38,11 @@ function pretty(json: Record<string, OverridePatch[]>): string {
   return JSON.stringify(json, null, 2);
 }
 
+// Mirror of ``core.overrides.resolver.OverrideOperation``. Keep in sync
+// — if the server adds a new operation, append it here too; otherwise
+// the client will reject patches the server would have accepted.
+const VALID_OPS: readonly string[] = ["set", "delete", "append", "merge"];
+
 function parse(text: string): {
   ok: true;
   value: Record<string, OverridePatch[]>;
@@ -67,6 +72,17 @@ function parse(text: string): {
         const rec = p as Record<string, unknown>;
         if (typeof rec.op !== "string") {
           return { ok: false, error: `Patch ${k}[${i}] is missing 'op'.` };
+        }
+        // Validate ``op`` against the known set rather than just
+        // checking it's a string — the server's ``patches_from_wire``
+        // rejects unknown ops with a 400, so this match keeps the
+        // client/server contract aligned and produces an inline error
+        // instead of a post-Save toast.
+        if (!VALID_OPS.includes(rec.op)) {
+          return {
+            ok: false,
+            error: `Patch ${k}[${i}] has unknown op "${rec.op}". Valid: ${VALID_OPS.join(", ")}.`,
+          };
         }
         if (typeof rec.path !== "string" || rec.path.length === 0) {
           return {

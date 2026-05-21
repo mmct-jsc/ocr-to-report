@@ -70,6 +70,12 @@ export function TemplatesTab() {
 
   async function refresh(): Promise<void> {
     if (!client) return;
+    // Clear stale error state before the refresh kicks off. Without
+    // this, a transient failure during a post-upload refresh (network
+    // blip, server restart) would set loadError and pin the component
+    // on the full-page error state until the user navigated away and
+    // back — even though subsequent uploads succeeded.
+    setLoadError(null);
     try {
       const [tpls, cfg] = await Promise.all([
         client.templates.list(),

@@ -385,3 +385,39 @@ def test_delete_with_no_prior_upload_returns_404(
     headers = {"Authorization": f"Bearer {seeded['api_key']}"}
     r = client.delete("/v1/templates/us-hs.v1/grade_9", headers=headers)
     assert r.status_code == 404, r.text
+
+
+def test_delete_wrong_template_key_returns_404_when_other_key_overridden(
+    standard_client: tuple[TestClient, dict[str, Any]],
+) -> None:
+    """Code-review finding: DELETE for grade_10 must 404 if only grade_9 is uploaded.
+
+    Pre-fix, the handler 404'd only when the entire target_id row was
+    missing — if the target had a different template_key uploaded, the
+    DELETE for grade_10 fell through to a no-op upsert and returned
+    204, lying about what happened. This test pins the corrected
+    behavior.
+    """
+    client, seeded = standard_client
+    headers = {"Authorization": f"Bearer {seeded['api_key']}"}
+    # Upload grade_9 so the target_id row exists.
+    upload = client.post(
+        "/v1/templates/us-hs.v1/grade_9",
+        headers=headers,
+        files={
+            "template_file": (
+                "x.xlsx",
+                _custom_xlsx_bytes(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+    assert upload.status_code == 201, upload.text
+
+    # Now DELETE a DIFFERENT key. The row exists but has no patch for it
+    # — must 404, not 204.
+    r = client.delete("/v1/templates/us-hs.v1/some_nonexistent_key", headers=headers)
+    assert r.status_code == 404, (
+        f"DELETE for a template_key with no override on an otherwise-overridden "
+        f"target_id should 404; got {r.status_code} body={r.text}"
+    )

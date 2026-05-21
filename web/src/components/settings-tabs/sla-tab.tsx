@@ -104,6 +104,26 @@ function stateToPatches(state: SlaFormState): OverridePatch[] {
   return out;
 }
 
+/**
+ * Stable string representation of a patch list, ignoring key insertion
+ * order in each patch object. ``JSON.stringify`` is order-sensitive —
+ * if the server returns ``{path, op, value}`` and the client emits
+ * ``{op, path, value}``, naive stringify reports them as different
+ * even though they're semantically identical, which would falsely
+ * mark the form as dirty on page load.
+ *
+ * Sorting the patch list itself would lose meaning (patches apply in
+ * order); we only sort keys WITHIN each patch object.
+ */
+function canonicalize(patches: OverridePatch[]): string {
+  return JSON.stringify(
+    patches.map((p) => {
+      const entries = Object.entries(p).sort(([a], [b]) => a.localeCompare(b));
+      return Object.fromEntries(entries);
+    }),
+  );
+}
+
 export function SlaTab() {
   const { client } = useAuth();
   const toast = useToast();
@@ -146,8 +166,14 @@ export function SlaTab() {
   }, [client]);
 
   const proposedPatches = useMemo(() => stateToPatches(state), [state]);
+  // Key-order canonical stringify — the server may serialize patch
+  // objects with different key insertion order than ``stateToPatches``
+  // emits, which would otherwise produce a spurious ``dirty=true`` on
+  // load (and an always-enabled Save button before the user touched
+  // anything). Sorting keys before stringify gives us semantic
+  // equality without pulling in a deep-equal dep.
   const dirty = useMemo(
-    () => JSON.stringify(proposedPatches) !== JSON.stringify(savedPatches),
+    () => canonicalize(proposedPatches) !== canonicalize(savedPatches),
     [proposedPatches, savedPatches],
   );
 

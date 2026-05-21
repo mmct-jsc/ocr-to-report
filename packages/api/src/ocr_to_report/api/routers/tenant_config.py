@@ -43,6 +43,7 @@ from ocr_to_report.api.deps import (
     resolve_sla_for_tenant,
 )
 from ocr_to_report.api.schemas import TenantConfigResponse, TenantConfigUpdate
+from ocr_to_report.core.errors.domain import ConflictError
 from ocr_to_report.core.overrides import patches_from_wire
 from ocr_to_report.core.sla.resolver import resolve_with_overrides
 
@@ -133,8 +134,18 @@ async def replace_tenant_config(  # noqa: PLR0912 — three independent scope br
     # rides the upcoming commit.
     if body.pipeline_id is not None and body.pipeline_id != repos.tenant.pipeline_id:
         db_tenant = await repos.session.get(Tenant, repos.tenant.id)
-        if db_tenant is not None:
-            db_tenant.pipeline_id = body.pipeline_id
+        if db_tenant is None:
+            # The row was loaded by the auth dep less than a request ago,
+            # so its disappearance signals concurrent admin action
+            # (archival, hard-delete) — fail loud rather than write the
+            # in-memory copy and respond 200 with a value the DB doesn't
+            # have. Without this guard the caller sees a successful PUT
+            # whose next GET returns the old pipeline_id.
+            raise ConflictError(
+                "tenant row disappeared mid-request; cannot persist pipeline switch",
+                tenant_id=str(repos.tenant.id),
+            )
+        db_tenant.pipeline_id = body.pipeline_id
         # Keep the in-memory copy aligned so the same-request response
         # reflects the change without an extra round-trip.
         repos.tenant.pipeline_id = body.pipeline_id
