@@ -56,6 +56,12 @@ jobs:
       - name: Build (DEPLOY_TARGET=pages)
         env:
           DEPLOY_TARGET: pages
+          # Surfaces ``import.meta.env.VITE_STATIC_DEMO === "true"`` at
+          # runtime so the SPA can branch: hide the login flow + Sign-in
+          # CTAs (no backend to sign into) and show a friendly
+          # "Demo mode" indicator instead of the alarming "API
+          # unreachable" red dot.
+          VITE_STATIC_DEMO: "true"
         run: |
           cd web && npm run build
 
