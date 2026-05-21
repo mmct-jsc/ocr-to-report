@@ -2140,7 +2140,7 @@ wheels = [
 
 [[package]]
 name = "ocr-to-report-adapters"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/adapters" }
 dependencies = [
     { name = "aioboto3" },
@@ -2200,7 +2200,7 @@ provides-extras = ["openai", "google", "tesseract"]
 
 [[package]]
 name = "ocr-to-report-api"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/api" }
 dependencies = [
     { name = "fastapi" },
@@ -2241,7 +2241,7 @@ requires-dist = [
 
 [[package]]
 name = "ocr-to-report-cli"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/cli" }
 dependencies = [
     { name = "ocr-to-report-adapters" },
@@ -2262,7 +2262,7 @@ requires-dist = [
 
 [[package]]
 name = "ocr-to-report-core"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "annotated-types" },
@@ -2283,7 +2283,7 @@ requires-dist = [
 
 [[package]]
 name = "ocr-to-report-mcp"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/mcp" }
 dependencies = [
     { name = "mcp" },
@@ -2300,7 +2300,7 @@ requires-dist = [
 
 [[package]]
 name = "ocr-to-report-sdk-py"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/sdk_py" }
 dependencies = [
     { name = "httpx" },
@@ -2315,7 +2315,7 @@ requires-dist = [
 
 [[package]]
 name = "ocr-to-report-worker"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/worker" }
 dependencies = [
     { name = "ocr-to-report-adapters" },
@@ -2332,7 +2332,7 @@ requires-dist = [
 
 [[package]]
 name = "ocr-to-report-workspace"
-version = "0.2.0"
+version = "0.2.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]

@@ -2,6 +2,58 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.2.1] — 2026-05-21
+
+Security patch release. Fixes two findings surfaced by an internal
+security review of the v0.2.0 customization surfaces. **Operators
+running v0.2.0 should upgrade.**
+
+### Security
+
+- **(HIGH) Cross-tenant blob read via `templates[<key>].blob_key`
+  patch injection.** The `POST /v1/transcripts` render path fetched
+  the patch's `value` field verbatim from the blob store; multi-tenant
+  storage shares one keyspace (only path prefixes segregate). A
+  tenant could `PUT /v1/tenant/config` with a patch pointing at
+  another tenant's blob, then run a job and have the renderer return
+  the foreign template (or, by varying the key, any job-output blob
+  with extracted PII). Fixed with a two-layer guard: write-time
+  rejection in `PUT/POST :preview` of any
+  `templates[<key>].blob_key` patch whose value doesn't start with
+  `tenant/{caller.tenant_id}/templates/`, plus matching read-time
+  rejection in `transcripts.py` as defense-in-depth. Even if a row
+  leaks past the PUT guard (manual SQL, future schema migration),
+  the render path refuses to honor it. New regression tests:
+  `test_put_rejects_foreign_tenant_blob_key_patch` +
+  `test_preview_rejects_foreign_tenant_blob_key_patch`.
+
+- **(MEDIUM) Unrestricted `pipeline_id` write.** The PUT handler
+  wrote `body.pipeline_id` directly to `tenant.pipeline_id` with no
+  validation, leaving the pipeline loader to reject unknown ids at
+  job time. A path-traversal payload like `../../etc/passwd` would
+  land in the DB and only be filtered downstream — whether that
+  becomes a real file read depends on the loader's path handling.
+  Now `_list_shipped_pipelines` enumerates the available `*.yaml`
+  files under `pipelines_root` and the PUT/`:preview` validator
+  rejects any id not in that set with HTTP 400. Path-traversal
+  payloads die at the API gate. Regression test:
+  `test_put_rejects_unknown_pipeline_id`.
+
+### Internal
+
+- Hardening passes that landed alongside v0.2.0 but didn't justify a
+  release on their own: axe-core static a11y audit of the new
+  Settings tabs (5 issues fixed including a missing tablist
+  `aria-label`), schemathesis-driven contract tests covering all four
+  v0.2.0 endpoints under the `contract` pytest marker, and 6 bugs
+  caught by the code-reviewer agent (silent `pipeline_id` no-op when
+  `session.get(Tenant, …)` returns None, `get_resolved_tenant_config`
+  opening a second DB session per request, DELETE returning 204 for
+  a missing template_key on an existing target_id row, and three
+  smaller UI fixes).
+
+No new endpoints, schema migrations, or breaking changes.
+
 ## [0.2.0] — 2026-05-21
 
 The "fully customizable per tenant" milestone. Every tenant now picks

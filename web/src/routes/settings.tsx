@@ -201,7 +201,7 @@ function GeneralTab() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-1">
           <p>
-            Version <span className="font-mono">v0.2.0</span>
+            Version <span className="font-mono">v0.2.1</span>
           </p>
           <p>
             Vite + React 18 + Tailwind. Driven by{" "}

@@ -293,8 +293,7 @@ def _resolve_with_replacements(
         available = _list_shipped_pipelines(state)
         if available and body.pipeline_id not in available:
             raise ValidationError(
-                f"unknown pipeline_id {body.pipeline_id!r}; "
-                f"available: {sorted(available)}",
+                f"unknown pipeline_id {body.pipeline_id!r}; available: {sorted(available)}",
                 pipeline_id=body.pipeline_id,
             )
 

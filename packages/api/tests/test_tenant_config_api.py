@@ -342,8 +342,7 @@ def test_put_rejects_foreign_tenant_blob_key_patch(
     client, seeded = standard_client
     headers = {"Authorization": f"Bearer {seeded['api_key']}"}
     foreign_key = (
-        "tenant/00000000-0000-0000-0000-000000000000/templates/"
-        "us-hs.v1/grade_9/deadbeef.xlsx"
+        "tenant/00000000-0000-0000-0000-000000000000/templates/us-hs.v1/grade_9/deadbeef.xlsx"
     )
 
     r = client.put(
@@ -374,8 +373,7 @@ def test_preview_rejects_foreign_tenant_blob_key_patch(
     client, seeded = standard_client
     headers = {"Authorization": f"Bearer {seeded['api_key']}"}
     foreign_key = (
-        "tenant/00000000-0000-0000-0000-000000000000/templates/"
-        "us-hs.v1/grade_9/deadbeef.xlsx"
+        "tenant/00000000-0000-0000-0000-000000000000/templates/us-hs.v1/grade_9/deadbeef.xlsx"
     )
 
     r = client.post(
