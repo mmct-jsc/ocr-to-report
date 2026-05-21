@@ -76,12 +76,30 @@ export function UploadRoute() {
       });
     },
     onSuccess: (resp) => {
-      toast.success("Job " + resp.job.status, summarizeResponse(resp));
+      // Tone the toast to the actual outcome — ``Job failed`` rendered
+      // as a green success toast misreads as good news. Branch on
+      // status: succeeded/completed → success; parked → warn (needs
+      // human review); failed → error.
+      const status = resp.job.status;
+      const summary = summarizeResponse(resp);
+      if (status === "succeeded" || status === "completed") {
+        toast.success("Extraction complete", summary);
+      } else if (status === "parked") {
+        toast.warn("Parked for review", summary);
+      } else if (status === "failed") {
+        toast.error(
+          "Extraction failed",
+          resp.job.error_detail ?? summary,
+        );
+      } else {
+        // pending / running / other interim states.
+        toast.info(`Job ${status}`, summary);
+      }
       navigate(`/jobs/${resp.job.id}`);
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Submission failed", msg);
+      toast.error("Couldn't submit the transcript", msg);
     },
   });
 

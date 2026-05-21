@@ -53,7 +53,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (t: Omit<Toast, "id">) => {
       const id = Date.now() + Math.random();
       setToasts((cur) => [...cur, { ...t, id }]);
-      window.setTimeout(() => remove(id), 5000);
+      // Error toasts stay until dismissed. A user editing a long form
+      // can miss a 5-second flash; for a destructive-action failure
+      // ("the API rejected this upload because…") sticky beats
+      // ephemeral. Non-error toasts auto-clear at 5s as before.
+      if (t.tone !== "danger") {
+        window.setTimeout(() => remove(id), 5000);
+      }
     },
     [remove],
   );
@@ -82,6 +88,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={t.id}
+              role={t.tone === "danger" ? "alert" : "status"}
+              aria-live={t.tone === "danger" ? "assertive" : "polite"}
               className={cn(
                 "pointer-events-auto surface shadow-lg flex gap-3 px-4 py-3 animate-slide-up",
                 "border-l-4",

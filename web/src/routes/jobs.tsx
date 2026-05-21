@@ -151,19 +151,33 @@ export function JobsRoute() {
           ) : (
             <EmptyState
               icon={Briefcase}
-              title="No jobs yet"
+              title={status ? `No ${status} jobs` : "No jobs yet"}
               description={
                 status
-                  ? `No jobs in status "${status}".`
+                  ? `No jobs are currently ${status}. Try clearing the filter to see jobs in every status.`
                   : "Submit a transcript via the Process page to populate the job log."
               }
               action={
-                <Link
-                  to="/upload"
-                  className="text-primary hover:underline text-sm font-medium"
-                >
-                  Process a transcript →
-                </Link>
+                status ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("status");
+                      setSearchParams(next);
+                    }}
+                    className="inline-flex items-center h-9 px-4 rounded-md text-sm font-medium border border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Clear filter
+                  </button>
+                ) : (
+                  <Link
+                    to="/upload"
+                    className="inline-flex items-center gap-2 h-9 px-4 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Process a transcript
+                  </Link>
+                )
               }
             />
           )}

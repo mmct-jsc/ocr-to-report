@@ -77,8 +77,8 @@ export function TemplatesRoute() {
       ) : (
         <EmptyState
           icon={BookTemplate}
-          title="No targets registered"
-          description="Drop a target bundle into ./targets/<target-id>/ and restart the API."
+          title="No target bundles loaded"
+          description="Drop a YAML bundle into ./targets/<id>/ on the host and restart the API. See docs/CONTRIBUTING_TARGET.md for the bundle schema."
         />
       )}
     </>

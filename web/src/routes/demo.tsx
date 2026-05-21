@@ -98,6 +98,7 @@ export function DemoRoute() {
         </div>
       </header>
 
+      <main>
       {/* ──────────── Hero ──────────── */}
       <section className="max-w-6xl mx-auto px-4 pt-16 pb-12">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
@@ -319,6 +320,7 @@ export function DemoRoute() {
           OCR-to-Report · MIT licensed · Demo build
         </p>
       </section>
+      </main>
     </div>
   );
 }
@@ -456,7 +458,7 @@ function NextItem({
           status === "next"
             ? "bg-primary/10 text-primary border border-primary/20"
             : status === "ga"
-              ? "bg-success/10 text-success border border-success/20"
+              ? "bg-success/5 text-success border border-success/20"
               : "bg-muted text-muted-foreground border border-border",
         )}
       >

@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty";
 
 export function DashboardRoute() {
   const client = useClient();
@@ -128,13 +129,22 @@ export function DashboardRoute() {
                 ))}
               </ul>
             ) : (
-              <p className="px-5 pb-5 text-sm text-muted-foreground">
-                No jobs yet — start with{" "}
-                <Link to="/upload" className="text-primary hover:underline">
-                  /upload
-                </Link>
-                .
-              </p>
+              <div className="px-5 pb-5">
+                <EmptyState
+                  icon={TrendingUp}
+                  level={3}
+                  title="No jobs yet"
+                  description="Process your first transcript to populate this list. Recent jobs include status, model used, cost, and a direct link to the result."
+                  action={
+                    <Link
+                      to="/upload"
+                      className="inline-flex items-center gap-2 h-9 px-4 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Process first transcript
+                    </Link>
+                  }
+                />
+              </div>
             )}
           </CardContent>
         </Card>
@@ -173,7 +183,12 @@ export function DashboardRoute() {
                 )}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No jobs parked. ✨</p>
+              <EmptyState
+                icon={Sparkles}
+                level={3}
+                title="Nothing to review"
+                description="Low-confidence extractions appear here when the SLA gate parks them. Reviewers approve or reject; rejected jobs are discarded."
+              />
             )}
           </CardContent>
         </Card>

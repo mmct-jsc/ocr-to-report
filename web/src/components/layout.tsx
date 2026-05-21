@@ -209,7 +209,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </header>
         <ImpersonationBanner />
-        <main className="px-4 lg:px-8 py-6 max-w-7xl mx-auto animate-fade-in">{children}</main>
+        {/* Width is route-controlled: list views (jobs, audit, tenants)
+            get the full content width; narrow forms (upload, settings)
+            wrap their own container in ``max-w-3xl mx-auto``. The old
+            global ``max-w-7xl mx-auto`` fought the sidebar push on
+            1280-1440 viewports — content centered on a non-centered
+            canvas left awkward dead space on the right. */}
+        <main className="px-4 lg:px-8 py-6 animate-fade-in">{children}</main>
       </div>
 
       {mobileOpen && (

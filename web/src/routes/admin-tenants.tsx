@@ -153,8 +153,18 @@ export function AdminTenantsRoute() {
           ) : (
             <EmptyState
               icon={Building2}
+              level={3}
               title="No tenants yet"
-              description="Provision the first tenant via the form above or `ocr-to-report bootstrap` on the host."
+              description="Use Create tenant above to provision the first one, or run ocr-to-report bootstrap on the host."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="inline-flex items-center gap-2 h-9 px-4 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  Create first tenant
+                </button>
+              }
             />
           )}
         </CardContent>
