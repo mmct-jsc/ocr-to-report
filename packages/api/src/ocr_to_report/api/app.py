@@ -8,9 +8,8 @@ from typing import TYPE_CHECKING, Any, Final
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from starlette.formparsers import MultiPartParser
-
 from sqlalchemy import text
+from starlette.formparsers import MultiPartParser
 
 from ocr_to_report.adapters.db import Base, dispose_engines, get_engine
 from ocr_to_report.api.deps import build_app_state
@@ -55,10 +54,18 @@ def _make_lifespan(settings: Settings) -> Any:
                 engine = get_engine(settings.database_url)
                 async with engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
-            except Exception:
-                # Don't crash startup if migration fails — readiness will
-                # surface the issue and the operator can intervene.
-                pass
+            except Exception as e:
+                # Don't crash startup if migration fails — /v1/ready will
+                # surface the issue and the operator can intervene. The
+                # blanket catch is intentional: any failure here (network,
+                # perms, schema conflict) must NOT prevent the app from
+                # booting and serving /v1/health, /v1/ready.
+                import structlog  # noqa: PLC0415 — lazy to avoid boot import cycle
+
+                structlog.get_logger(__name__).warning(
+                    "auto_migrate_on_boot failed; continuing without schema",
+                    error=str(e),
+                )
 
         try:
             yield
