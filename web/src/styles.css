@@ -11,7 +11,11 @@
     --primary: 79 70 229;
     --primary-foreground: 255 255 255;
     --muted: 241 245 249;
-    --muted-foreground: 100 116 139;
+    /* slate-600 (was slate-500). On bg-muted (slate-100) the slate-500
+       triplet measured 4.34:1 at 10-11px — fails AA 4.5:1. slate-600
+       lands at ~6:1, clean across every muted-text-on-muted-bg surface
+       (jobs table secondary metadata, menu item subtitles, etc.). */
+    --muted-foreground: 71 85 105;
     --accent: 99 102 241;
     --accent-foreground: 255 255 255;
     --border: 226 232 240;

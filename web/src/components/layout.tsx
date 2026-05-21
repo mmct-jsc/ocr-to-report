@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/cn";
 import { useAuth, useClient } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { TenantSwitcher } from "@/components/tenant-switcher";
+import { ImpersonationBanner, TenantSwitcher } from "@/components/tenant-switcher";
 
 const TENANT_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -208,6 +208,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <LogOut size={16} aria-hidden />
           </button>
         </header>
+        <ImpersonationBanner />
         <main className="px-4 lg:px-8 py-6 max-w-7xl mx-auto animate-fade-in">{children}</main>
       </div>
 
