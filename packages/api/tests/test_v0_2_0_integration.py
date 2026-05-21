@@ -217,9 +217,7 @@ async def seeded(settings: Settings, pg_clean_engine: AsyncEngine) -> dict[str, 
         # baseline to override.
         tenant.sla_tier = SlaTier.STANDARD.value
         keys = ApiKeyRepo(session)
-        _row, plain_key = await keys.issue(
-            tenant_id=tenant.id, scopes=["transcripts:write"]
-        )
+        _row, plain_key = await keys.issue(tenant_id=tenant.id, scopes=["transcripts:write"])
         await session.commit()
         return {"tenant_id": tenant.id, "api_key": plain_key}
 
@@ -234,9 +232,7 @@ def _make_client(settings: Settings) -> TestClient:
     encryptor = EnvelopeEncryptor(EnvKEKProvider(env_var="OCR2R_KEK_B64"))
     profile_registry = ProfileRegistry(settings.profiles_root.resolve())
     target_registry = TargetRegistry(settings.targets_root.resolve())
-    bundle_roots = {
-        t.id: settings.targets_root / t.id for t in target_registry.all()
-    }
+    bundle_roots = {t.id: settings.targets_root / t.id for t in target_registry.all()}
 
     client = TestClient(app)
     client.__enter__()
@@ -275,9 +271,7 @@ def test_full_v0_2_0_customization_flow_against_postgres(
             headers=headers,
             json={
                 "pipeline_id": "with_manual_review_v1",
-                "sla_patches": [
-                    {"op": "set", "path": "confidence_threshold", "value": 0.95}
-                ],
+                "sla_patches": [{"op": "set", "path": "confidence_threshold", "value": 0.95}],
                 "target_overrides": {
                     target_id: [
                         {
