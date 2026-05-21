@@ -211,6 +211,9 @@ async def handle_batch_poll(ctx: WorkerContext, envelope: TaskEnvelope) -> None:
                 tokens_output=ext.usage.output_tokens,
                 usd_cost=ext.usage.usd_cost,
             )
+            # v0.3.0: batch jobs ship platform-billed only. BYOK on
+            # the batch path is YAGNI-deferred to v0.7.0; the explicit
+            # tag makes the intent visible at the call site.
             await usage_repo.increment(
                 tenant_id=tenant_id,
                 period_start=period_start,
@@ -221,6 +224,7 @@ async def handle_batch_poll(ctx: WorkerContext, envelope: TaskEnvelope) -> None:
                 cache_read_tokens=ext.usage.cache_read_input_tokens,
                 cache_creation_tokens=ext.usage.cache_creation_input_tokens,
                 usd_cost=ext.usage.usd_cost,
+                billing_path="platform",
             )
         sub_repo = BatchSubmissionRepo(session)
         await sub_repo.mark_completed(submission.id, status=status.value)

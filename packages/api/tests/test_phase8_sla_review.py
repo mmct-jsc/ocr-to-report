@@ -100,7 +100,10 @@ class _ToggleVisionAdapter:
         self._call_count = 0
         self.extract = AsyncMock(side_effect=self._extract)
 
-    async def _extract(self, _request: Any) -> ExtractionResult:
+    async def _extract(
+        self, _request: Any, *, override_api_key: str | None = None
+    ) -> ExtractionResult:
+        del override_api_key  # v0.3.0 BYOK threading; mock doesn't care
         self._call_count += 1
         confidence = self._low if self._call_count == 1 else self._high
         return ExtractionResult(

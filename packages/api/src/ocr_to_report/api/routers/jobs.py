@@ -12,13 +12,20 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from ocr_to_report.adapters.db import Job
+from ocr_to_report.adapters.db.repositories import TenantCredential
 from ocr_to_report.adapters.render import XlsxRenderer
 from ocr_to_report.adapters.vision import (
     VisionRequest,
     compile_schema,
     preprocess,
 )
-from ocr_to_report.api.deps import AppState, RequestRepos, get_app_state, get_repos
+from ocr_to_report.api.deps import (
+    AppState,
+    RequestRepos,
+    get_active_anthropic_credentials,
+    get_app_state,
+    get_repos,
+)
 from ocr_to_report.api.schemas import TranscriptJobSummary
 from ocr_to_report.core.errors.domain import ConflictError, NotFoundError, ValidationError
 from ocr_to_report.core.mapping import canonical_to_render_data, extract_to_canonical
@@ -76,6 +83,7 @@ async def approve_job(
     job_id: uuid.UUID,
     state: Annotated[AppState, Depends(get_app_state)],
     repos: Annotated[RequestRepos, Depends(get_repos)],
+    byok_anthropic: Annotated[TenantCredential | None, Depends(get_active_anthropic_credentials)],
 ) -> TranscriptJobSummary:
     """Approve a parked job + finish processing.
 
@@ -117,8 +125,26 @@ async def approve_job(
         schema_version=profile_bundle.manifest.version,
         profile_id=job.profile_id,
     )
+    # v0.3.0 BYOK: thread the tenant's API key (if configured). Approve
+    # always re-runs extraction, so this counts as a fresh BYOK
+    # invocation — audit + bill accordingly.
+    override_api_key = byok_anthropic.api_key if byok_anthropic is not None else None
+    if byok_anthropic is not None:
+        await repos.audit.append(
+            tenant_id=repos.tenant.id,
+            actor_type="api_key",
+            actor_id_hash="",
+            action="provider.byok_invoked",
+            resource_type="job",
+            resource_id=str(job.id),
+            metadata={
+                "provider": byok_anthropic.provider,
+                "credential_id": str(byok_anthropic.id),
+                "context": "approve",
+            },
+        )
     adapter = state.vision_router.select()
-    result = await adapter.extract(vision_req)
+    result = await adapter.extract(vision_req, override_api_key=override_api_key)
 
     canonical = extract_to_canonical(
         profile_bundle,

@@ -21,6 +21,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, Form, Header, UploadFile
 
 from ocr_to_report.adapters.db import Job
+from ocr_to_report.adapters.db.repositories import TenantCredential
 from ocr_to_report.adapters.queue import TaskKind
 from ocr_to_report.adapters.render import XlsxRenderer
 from ocr_to_report.adapters.vision import (
@@ -38,6 +39,7 @@ from ocr_to_report.api.deps import (
     AppState,
     RequestRepos,
     ResolvedTenantConfig,
+    get_active_anthropic_credentials,
     get_app_state,
     get_current_sla,
     get_repos,
@@ -74,7 +76,7 @@ router = APIRouter(prefix="/v1", tags=["transcripts"])
         503: {"description": "No vision provider available"},
     },
 )
-async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are intentionally sequential
+async def create_transcript(  # noqa: PLR0912, PLR0915 — controller; pipeline steps are intentionally sequential
     state: Annotated[AppState, Depends(get_app_state)],
     repos: Annotated[RequestRepos, Depends(get_repos)],
     # ``get_current_sla`` returns the tier preset with any tenant-scoped
@@ -87,6 +89,11 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
     # ``templates[<key>].blob_key`` patch — if found, the renderer reads
     # the uploaded xlsx from blob storage instead of the shipped file.
     resolved_config: Annotated[ResolvedTenantConfig, Depends(get_resolved_tenant_config)],
+    # v0.3.0 BYOK: when this is not None, the tenant has supplied their
+    # own Anthropic key; we route their request through it AND tag the
+    # usage rollup with ``billing_path='byok'`` so v0.4.0 invoicing can
+    # ignore it.
+    byok_anthropic: Annotated[TenantCredential | None, Depends(get_active_anthropic_credentials)],
     file: Annotated[UploadFile, File(description="PDF or image of the transcript")],
     profile_id: Annotated[str, Form(description="Source profile id")],
     target_id: Annotated[str, Form(description="Target system id")],
@@ -151,6 +158,25 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
         resource_id=str(job.id),
     )
 
+    # v0.3.0 BYOK: thread the tenant's API key through the vision call
+    # when one is configured. Audit one entry per request so the audit
+    # log answers "which credential did this job use" without the key.
+    override_api_key = byok_anthropic.api_key if byok_anthropic is not None else None
+    billing_path = "byok" if byok_anthropic is not None else "platform"
+    if byok_anthropic is not None:
+        await repos.audit.append(
+            tenant_id=repos.tenant.id,
+            actor_type="api_key",
+            actor_id_hash="",
+            action="provider.byok_invoked",
+            resource_type="job",
+            resource_id=str(job.id),
+            metadata={
+                "provider": byok_anthropic.provider,
+                "credential_id": str(byok_anthropic.id),
+            },
+        )
+
     try:
         # 1. Preprocess
         images = preprocess(blob)
@@ -165,7 +191,9 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
             schema_version=profile_bundle.manifest.version,
             profile_id=profile_id,
         )
-        result = await _extract_with_cache(adapter, vision_req, state.result_cache)
+        result = await _extract_with_cache(
+            adapter, vision_req, state.result_cache, override_api_key=override_api_key
+        )
 
         # 2b. Confidence gate — park instead of returning.
         if sla.park_low_confidence and result.confidence < sla.confidence_threshold:
@@ -262,7 +290,8 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
             usd_cost=result.usage.usd_cost,
         )
 
-        # 9. Usage rollup (per-month period)
+        # 9. Usage rollup (per-month period). Platform vs BYOK rolls up
+        # to separate rows so v0.4.0 invoicing can sum only platform.
         period_start, period_end = _current_month_period()
         await repos.usage.increment(
             tenant_id=repos.tenant.id,
@@ -274,6 +303,7 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
             cache_read_tokens=result.usage.cache_read_input_tokens,
             cache_creation_tokens=result.usage.cache_creation_input_tokens,
             usd_cost=result.usage.usd_cost,
+            billing_path=billing_path,
         )
 
         await repos.audit.append(
@@ -486,12 +516,23 @@ async def _extract_with_cache(
     adapter: VisionAdapter,
     request: VisionRequest,
     cache: InMemoryAsyncCache,
+    *,
+    override_api_key: str | None = None,
 ) -> ExtractionResult:
+    """Result-cache wrapper around ``adapter.extract``.
+
+    ``override_api_key`` (v0.3.0 BYOK) is threaded to the adapter only
+    when no cache hit occurred — a cache hit returns the previously
+    stored extraction unchanged, which is correct: the extraction is a
+    pure function of the image + schema, not of which credential
+    produced it. The BYOK tenant gets a free ride on platform-cached
+    work, which is desirable; the platform never gets billed for the
+    BYOK tenant's miss either."""
     cache_key = make_cache_key(request.images, adapter.name, request.schema_version)
     blob = await cache.get(cache_key)
     if blob is not None:
         return deserialize_result(blob)
-    result = await adapter.extract(request)
+    result = await adapter.extract(request, override_api_key=override_api_key)
     await cache.set(cache_key, serialize_result(result), ttl_seconds=3600)
     return result
 

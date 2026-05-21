@@ -73,7 +73,10 @@ class _NameVisionAdapter:
         self.next_name = "Jan Kowalski"
         self.extract = AsyncMock(side_effect=self._extract)
 
-    async def _extract(self, _request: Any) -> ExtractionResult:
+    async def _extract(
+        self, _request: Any, *, override_api_key: str | None = None
+    ) -> ExtractionResult:
+        del override_api_key  # v0.3.0 BYOK threading; mock doesn't care
         return ExtractionResult(
             raw_extraction=_polish_extraction(self.next_name),
             confidence=0.95,

@@ -31,7 +31,9 @@ from ocr_to_report.adapters.db.repositories import (
     BatchSubmissionRepo,
     IdempotencyRepo,
     JobRepo,
+    TenantCredential,
     TenantOverrideRepo,
+    TenantProviderCredentialRepo,
     TenantRepo,
     TranscriptRepo,
     UsageRepo,
@@ -504,6 +506,60 @@ async def get_current_sla(
     return config.sla
 
 
+# ─── BYOK credentials (v0.3.0) ────────────────────────────────
+
+
+async def get_active_anthropic_credentials(
+    request: Request,
+    repos: Annotated[RequestRepos, Depends(get_repos)],
+) -> TenantCredential | None:
+    """Look up the tenant's active Anthropic BYOK credential.
+
+    Returns ``None`` when the tenant has no active row (the
+    platform-billed default) or when the row exists but the encrypted
+    key cannot be unwrapped (DEK rotation, ciphertext corruption — see
+    the BYOK plan's "decryption-error fallback" risk note). Falling
+    back to ``None`` rather than raising means a broken credential
+    never breaks the request path; an alarming WARN log captures the
+    credential id (never the ciphertext) for ops to investigate.
+
+    Memoized on ``request.state.byok_credentials_anthropic`` so a
+    request that hits multiple handlers (or a handler that asks for
+    the dep twice) makes one DB round-trip.
+    """
+    cached = getattr(request.state, "byok_credentials_anthropic", _SENTINEL_MISS)
+    if cached is not _SENTINEL_MISS:
+        return cached  # type: ignore[no-any-return]
+
+    creds_repo = TenantProviderCredentialRepo(repos.session, repos.encryptor)
+    try:
+        creds = await creds_repo.get_active_for_tenant(
+            repos.tenant.id, provider="anthropic", dek=repos.dek
+        )
+    except Exception:
+        # Broad catch by design — any crypto / IO failure unwrapping the
+        # key falls back to platform billing with a WARN log carrying
+        # the tenant id (never the ciphertext or the credential id we
+        # couldn't decrypt).
+        import structlog  # noqa: PLC0415
+
+        structlog.get_logger().warning(
+            "byok_credential_unwrap_failed",
+            tenant_id=str(repos.tenant.id),
+            provider="anthropic",
+        )
+        creds = None
+
+    request.state.byok_credentials_anthropic = creds
+    return creds
+
+
+# Sentinel so we can distinguish "not yet looked up" from "looked up
+# and got None". Reusing a plain ``None`` default would force an extra
+# DB call on every dep invocation for tenants without BYOK.
+_SENTINEL_MISS = object()
+
+
 # ─── Lifespan ────────────────────────────────────────────────
 async def shutdown_lifespan(_: FastAPI) -> None:
     """Dispose engines on app shutdown."""
@@ -520,6 +576,7 @@ __all__ = [
     "ResolvedTenantConfig",
     "authenticate",
     "build_app_state",
+    "get_active_anthropic_credentials",
     "get_app_state",
     "get_current_api_key",
     "get_current_dek",
