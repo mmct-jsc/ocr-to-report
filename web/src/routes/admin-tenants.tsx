@@ -67,7 +67,7 @@ export function AdminTenantsRoute() {
               Include archived
             </label>
             <Button onClick={() => setShowCreate((v) => !v)}>
-              <Plus size={14} /> {showCreate ? "Close" : "Create tenant"}
+              <Plus size={14} aria-hidden /> {showCreate ? "Close" : "Create tenant"}
             </Button>
           </>
         }
@@ -124,14 +124,14 @@ export function AdminTenantsRoute() {
                             }}
                             className="text-xs text-muted-foreground hover:text-danger inline-flex items-center gap-1"
                           >
-                            <Archive size={12} /> Archive
+                            <Archive size={12} aria-hidden /> Archive
                           </button>
                         )}
                         <Link
                           to={`/admin/tenants/${t.id}`}
                           className="text-primary hover:underline inline-flex items-center gap-1 text-xs font-medium"
                         >
-                          Manage <ArrowRight size={12} />
+                          Manage <ArrowRight size={12} aria-hidden />
                         </Link>
                       </td>
                     </tr>
@@ -242,7 +242,7 @@ function CreateTenantPanel({ onCreated }: { onCreated: () => void }) {
           loading={create.isPending}
           disabled={!form.name || !form.slug}
         >
-          <Plus size={14} /> Create
+          <Plus size={14} aria-hidden /> Create
         </Button>
       </CardFooter>
     </Card>

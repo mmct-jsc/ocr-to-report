@@ -32,7 +32,7 @@ export function SettingsRoute() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Server size={16} /> API endpoint
+              <Server size={16} aria-hidden /> API endpoint
             </CardTitle>
             <CardDescription>
               The base URL the SDK posts to. Behind the Vite dev proxy this is{" "}
@@ -61,7 +61,7 @@ export function SettingsRoute() {
                 }
               }}
             >
-              <RefreshCw size={14} /> Save
+              <RefreshCw size={14} aria-hidden /> Save
             </Button>
           </CardFooter>
         </Card>
@@ -69,7 +69,7 @@ export function SettingsRoute() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <KeyRound size={16} /> API key
+              <KeyRound size={16} aria-hidden /> API key
             </CardTitle>
             <CardDescription>
               Signed-in token, hashed on the server with Argon2id. Stored client-side in{" "}
@@ -92,7 +92,7 @@ export function SettingsRoute() {
                 }
               }}
             >
-              <Copy size={14} /> Copy
+              <Copy size={14} aria-hidden /> Copy
             </Button>
           </CardFooter>
         </Card>

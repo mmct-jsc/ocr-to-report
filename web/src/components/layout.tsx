@@ -121,7 +121,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   )
                 }
               >
-                <Icon size={16} />
+                <Icon size={16} aria-hidden />
                 <span>{item.label}</span>
               </NavLink>
             );
@@ -149,7 +149,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       )
                     }
                   >
-                    <Icon size={16} />
+                    <Icon size={16} aria-hidden />
                     <span>{item.label}</span>
                   </NavLink>
                 );
@@ -159,7 +159,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="px-4 py-3 border-t border-border space-y-2 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Activity size={12} className={healthy ? "text-success" : "text-danger"} />
+            <Activity size={12} aria-hidden className={healthy ? "text-success" : "text-danger"} />
             <span>
               {healthy === null
                 ? "Checking…"
@@ -181,7 +181,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             className="lg:hidden p-2 rounded-md hover:bg-muted"
             aria-label={mobileOpen ? "close menu" : "open menu"}
           >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            {mobileOpen ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
           </button>
           <div className="flex-1" />
           <TenantSwitcher />
@@ -189,7 +189,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             to="/upload"
             className="hidden md:inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
           >
-            <Upload size={14} /> New transcript
+            <Upload size={14} aria-hidden /> New transcript
           </Link>
           <button
             type="button"
@@ -197,7 +197,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             className="p-2 rounded-md hover:bg-muted text-muted-foreground"
             aria-label="toggle theme"
           >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
           </button>
           <button
             type="button"
@@ -205,7 +205,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             className="p-2 rounded-md hover:bg-muted text-muted-foreground"
             aria-label="sign out"
           >
-            <LogOut size={16} />
+            <LogOut size={16} aria-hidden />
           </button>
         </header>
         <main className="px-4 lg:px-8 py-6 max-w-7xl mx-auto animate-fade-in">{children}</main>

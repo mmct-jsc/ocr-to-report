@@ -129,7 +129,7 @@ export function AdminTenantDetailRoute() {
         actions={
           <Link to="/admin/tenants">
             <Button variant="ghost" size="sm">
-              <ArrowLeft size={14} /> All tenants
+              <ArrowLeft size={14} aria-hidden /> All tenants
             </Button>
           </Link>
         }
@@ -250,7 +250,7 @@ export function AdminTenantDetailRoute() {
                   size="sm"
                   onClick={() => setSecretShown((v) => !v)}
                 >
-                  {secretShown ? <EyeOff size={14} /> : <Eye size={14} />}
+                  {secretShown ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
                   {secretShown ? "Hide" : "Reveal"}
                 </Button>
                 <Button
@@ -261,7 +261,7 @@ export function AdminTenantDetailRoute() {
                     toast.info("Copied");
                   }}
                 >
-                  <Copy size={14} /> Copy
+                  <Copy size={14} aria-hidden /> Copy
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setCreatedKey(null)}>
                   Dismiss
@@ -279,7 +279,7 @@ export function AdminTenantDetailRoute() {
               <ul className="divide-y divide-border">
                 {apiKeys.data.map((k) => (
                   <li key={k.id} className="px-5 py-3 flex items-center gap-3">
-                    <KeyRound size={16} className="text-muted-foreground shrink-0" />
+                    <KeyRound size={16} aria-hidden className="text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
                         {k.label || "(unlabeled)"}
@@ -310,7 +310,7 @@ export function AdminTenantDetailRoute() {
                           if (confirm(`Revoke key ${k.prefix}…?`)) revokeKey.mutate(k.id);
                         }}
                       >
-                        <Trash2 size={12} /> Revoke
+                        <Trash2 size={12} aria-hidden /> Revoke
                       </Button>
                     )}
                   </li>
@@ -358,7 +358,7 @@ export function AdminTenantDetailRoute() {
                 <span>live (sk_live_)</span>
               </label>
               <Button onClick={() => issueKey.mutate()} loading={issueKey.isPending}>
-                <Plus size={14} /> Issue key
+                <Plus size={14} aria-hidden /> Issue key
               </Button>
             </div>
           </CardFooter>
@@ -366,7 +366,7 @@ export function AdminTenantDetailRoute() {
 
         <Card className="lg:col-span-3">
           <CardHeader className="flex-row items-center gap-2 flex">
-            <History size={16} className="text-muted-foreground" />
+            <History size={16} aria-hidden className="text-muted-foreground" />
             <CardTitle>Audit log (latest 50)</CardTitle>
           </CardHeader>
           <CardContent className="px-0 pb-0">

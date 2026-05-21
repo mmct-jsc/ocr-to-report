@@ -93,7 +93,7 @@ export function DemoRoute() {
             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
           >
             Sign in
-            <ArrowRight size={14} />
+            <ArrowRight size={14} aria-hidden />
           </Link>
         </div>
       </header>
@@ -118,7 +118,7 @@ export function DemoRoute() {
             to="/login"
             className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
           >
-            <Sparkles size={16} /> Try the live console
+            <Sparkles size={16} aria-hidden /> Try the live console
           </Link>
           <a
             href="https://github.com/QuocTran/OCR_to_Report_QT"
@@ -126,7 +126,7 @@ export function DemoRoute() {
             rel="noreferrer"
             className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-medium border border-border hover:bg-muted"
           >
-            <Github size={16} /> View on GitHub
+            <Github size={16} aria-hidden /> View on GitHub
           </a>
         </div>
 
@@ -312,7 +312,7 @@ export function DemoRoute() {
             to="/login"
             className="inline-flex items-center gap-2 h-11 px-6 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 self-start md:self-center"
           >
-            Open console <ArrowRight size={16} />
+            Open console <ArrowRight size={16} aria-hidden />
           </Link>
         </div>
         <p className="text-center text-[11px] text-muted-foreground mt-6">
@@ -328,7 +328,7 @@ export function DemoRoute() {
 function Bullet({ icon: Icon, text }: { icon: typeof ShieldCheck; text: string }) {
   return (
     <li className="inline-flex items-center gap-1.5">
-      <Icon size={14} className="text-primary" /> {text}
+      <Icon size={14} aria-hidden className="text-primary" /> {text}
     </li>
   );
 }
@@ -350,7 +350,7 @@ function AxisCard({
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-center gap-2">
         <div className="h-9 w-9 rounded-md bg-primary/10 text-primary grid place-items-center">
-          <Icon size={18} />
+          <Icon size={18} aria-hidden />
         </div>
         <div>
           <p className="font-medium tracking-tight">{title}</p>
@@ -392,7 +392,7 @@ function Feature({
         <div className="p-6 md:p-8 flex flex-col">
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="text-xs font-mono">{number}</span>
-            <Icon size={16} className="text-primary" />
+            <Icon size={16} aria-hidden className="text-primary" />
             {badge && (
               <span className="text-[10px] uppercase tracking-wider rounded-full px-2 py-0.5 border border-warning/40 text-warning">
                 {badge}

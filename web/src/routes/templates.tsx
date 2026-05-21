@@ -57,8 +57,7 @@ export function TemplatesRoute() {
                       key={tpl.key}
                       className="flex items-center gap-3 text-sm rounded-md border border-border px-3 py-2 surface-hover"
                     >
-                      <FileSpreadsheet
-                        size={14}
+                      <FileSpreadsheet size={14} aria-hidden
                         className="text-muted-foreground shrink-0"
                       />
                       <span className="font-medium">{tpl.key}</span>

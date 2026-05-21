@@ -99,9 +99,9 @@ function Inner() {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        {actingTenantId ? <Eye size={14} /> : <EyeOff size={14} />}
+        {actingTenantId ? <Eye size={14} aria-hidden /> : <EyeOff size={14} aria-hidden />}
         <span className="truncate">{label}</span>
-        <ChevronDown size={14} className="opacity-60" />
+        <ChevronDown size={14} aria-hidden className="opacity-60" />
       </button>
 
       {open && (
@@ -118,7 +118,7 @@ function Inner() {
               !actingTenantId && "bg-muted",
             )}
           >
-            <Building2 size={14} className="text-muted-foreground" />
+            <Building2 size={14} aria-hidden className="text-muted-foreground" />
             <span className="flex-1">Home tenant</span>
             {!actingTenantId && (
               <span className="text-[10px] uppercase text-muted-foreground">current</span>
@@ -144,7 +144,7 @@ function Inner() {
                         selected && "bg-muted",
                       )}
                     >
-                      <Building2 size={14} className="text-muted-foreground" />
+                      <Building2 size={14} aria-hidden className="text-muted-foreground" />
                       <div className="flex-1 min-w-0">
                         <p className="truncate font-medium">{t.name}</p>
                         <p className="text-[11px] text-muted-foreground font-mono truncate">

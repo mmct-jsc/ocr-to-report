@@ -146,7 +146,7 @@ export function LoginRoute() {
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground"
                     aria-label={show ? "hide key" : "show key"}
                   >
-                    {show ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {show ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
                   </button>
                 </div>
               </div>

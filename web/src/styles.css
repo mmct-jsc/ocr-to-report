@@ -16,9 +16,14 @@
     --accent-foreground: 255 255 255;
     --border: 226 232 240;
     --ring: 99 102 241;
-    --success: 16 185 129;
-    --warning: 234 179 8;
-    --danger: 239 68 68;
+    /* Light-theme accent palette uses 700-shade variants so all text +
+       icon combinations clear the WCAG 2.1 AA contrast bar of 4.5:1
+       against `--card` (white) and `--background` (slate-50).
+       Emerald-500 / yellow-500 / red-500 measured at 2.55:1 / 1.94:1 /
+       3.76:1 — all FAIL. The 700 shades measure ~5.5:1, ~6:1, ~5.9:1. */
+    --success: 5 122 85;
+    --warning: 161 98 7;
+    --danger: 185 28 28;
   }
 
   .dark {

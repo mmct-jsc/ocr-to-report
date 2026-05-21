@@ -150,14 +150,14 @@ export function ComplianceRoute() {
               loading={access.isPending}
               disabled={!accessName}
             >
-              <Search size={14} /> Article 15 — Access
+              <Search size={14} aria-hidden /> Article 15 — Access
             </Button>
             <Button
               onClick={() => portability.mutate()}
               loading={portability.isPending}
               disabled={!accessName}
             >
-              <Download size={14} /> Article 20 — Portability
+              <Download size={14} aria-hidden /> Article 20 — Portability
             </Button>
           </CardFooter>
           {accessResult && (
@@ -205,7 +205,7 @@ export function ComplianceRoute() {
                 onChange={(e) => setConfirmText(e.target.value)}
               />
               <p className="text-[11px] text-warning inline-flex items-center gap-1">
-                <AlertTriangle size={11} /> Audit log retains a SHA-256 of the name —
+                <AlertTriangle size={11} aria-hidden /> Audit log retains a SHA-256 of the name —
                 never the plaintext.
               </p>
             </div>
@@ -217,7 +217,7 @@ export function ComplianceRoute() {
               loading={erasure.isPending}
               disabled={eraseDisabled}
             >
-              <Trash2 size={14} /> Permanently erase
+              <Trash2 size={14} aria-hidden /> Permanently erase
             </Button>
           </CardFooter>
         </Card>
@@ -229,7 +229,7 @@ export function ComplianceRoute() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p className="inline-flex items-center gap-2 font-medium text-foreground">
-            <ShieldCheck size={16} className="text-success" /> FERPA-tagged audit entries
+            <ShieldCheck size={16} aria-hidden className="text-success" /> FERPA-tagged audit entries
             recorded for every call.
           </p>
           <p>

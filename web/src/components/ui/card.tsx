@@ -12,9 +12,17 @@ export function CardHeader({ className, ...rest }: HTMLAttributes<HTMLDivElement
   return <div className={cn("px-5 pt-5 pb-3", className)} {...rest} />;
 }
 
-export function CardTitle({ className, ...rest }: HTMLAttributes<HTMLHeadingElement>) {
+interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+  /** Heading level. Defaults to ``2`` so card sections sit one level under
+   * the route's ``<h1>`` (rendered by ``PageHeader``). Override only when
+   * a card is nested deeper in the heading outline. */
+  level?: 2 | 3 | 4;
+}
+
+export function CardTitle({ className, level = 2, ...rest }: CardTitleProps) {
+  const Tag = (`h${level}` as "h2" | "h3" | "h4");
   return (
-    <h3
+    <Tag
       className={cn("text-base font-semibold tracking-tight text-foreground", className)}
       {...rest}
     />

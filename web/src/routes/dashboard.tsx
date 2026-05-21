@@ -48,7 +48,7 @@ export function DashboardRoute() {
         actions={
           <Link to="/upload">
             <Button>
-              <Sparkles size={14} /> Process transcript
+              <Sparkles size={14} aria-hidden /> Process transcript
             </Button>
           </Link>
         }
@@ -122,7 +122,7 @@ export function DashboardRoute() {
                       to={`/jobs/${j.id}`}
                       className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      Detail <ArrowRight size={12} />
+                      Detail <ArrowRight size={12} aria-hidden />
                     </Link>
                   </li>
                 ))}

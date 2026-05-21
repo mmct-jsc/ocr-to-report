@@ -77,7 +77,7 @@ export function WebhooksRoute() {
               size="sm"
               onClick={() => setSecretShown((v) => !v)}
             >
-              {secretShown ? <EyeOff size={14} /> : <Eye size={14} />}
+              {secretShown ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
               {secretShown ? "Hide" : "Reveal"}
             </Button>
             <Button
@@ -88,7 +88,7 @@ export function WebhooksRoute() {
                 toast.info("Copied secret");
               }}
             >
-              <Copy size={14} /> Copy
+              <Copy size={14} aria-hidden /> Copy
             </Button>
             <Button
               variant="ghost"
@@ -121,7 +121,7 @@ export function WebhooksRoute() {
                 {list.data.map((w) => (
                   <li key={w.id} className="px-5 py-4 flex items-start gap-3">
                     <div className="rounded-md bg-muted p-2">
-                      <WebhookIcon size={16} className="text-muted-foreground" />
+                      <WebhookIcon size={16} aria-hidden className="text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{w.url}</p>
@@ -198,7 +198,7 @@ export function WebhooksRoute() {
               loading={create.isPending}
               disabled={!url || selected.length === 0}
             >
-              <Plus size={14} /> Create
+              <Plus size={14} aria-hidden /> Create
             </Button>
           </CardFooter>
         </Card>

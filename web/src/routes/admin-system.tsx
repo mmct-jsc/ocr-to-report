@@ -73,7 +73,7 @@ export function AdminSystemRoute() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Layers size={16} /> Profiles loaded
+              <Layers size={16} aria-hidden /> Profiles loaded
             </CardTitle>
             <CardDescription>Source-side bundles auto-discovered at boot.</CardDescription>
           </CardHeader>
@@ -100,7 +100,7 @@ export function AdminSystemRoute() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Layers size={16} /> Targets loaded
+              <Layers size={16} aria-hidden /> Targets loaded
             </CardTitle>
             <CardDescription>Output-side bundles auto-discovered at boot.</CardDescription>
           </CardHeader>
@@ -127,7 +127,7 @@ export function AdminSystemRoute() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity size={16} /> SLA tiers
+              <Activity size={16} aria-hidden /> SLA tiers
             </CardTitle>
             <CardDescription>
               Presets shipped at sla-tiers/&lt;tier&gt;.yaml.

@@ -151,7 +151,7 @@ export function UploadRoute() {
                     className="ml-2 p-1.5 rounded-full hover:bg-muted"
                     aria-label="remove"
                   >
-                    <X size={14} />
+                    <X size={14} aria-hidden />
                   </button>
                 </div>
               ) : (
@@ -170,7 +170,7 @@ export function UploadRoute() {
 
           <CardFooter className="flex justify-between flex-wrap gap-3">
             <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-              <AlertTriangle size={12} className="text-warning" />
+              <AlertTriangle size={12} aria-hidden className="text-warning" />
               Sync extract — long PDFs may take 5–30s.
             </p>
             <Button
@@ -179,7 +179,7 @@ export function UploadRoute() {
               onClick={() => submit.mutate()}
               disabled={!file}
             >
-              <Sparkles size={14} />
+              <Sparkles size={14} aria-hidden />
               {submit.isPending ? "Extracting…" : "Extract & render"}
             </Button>
           </CardFooter>

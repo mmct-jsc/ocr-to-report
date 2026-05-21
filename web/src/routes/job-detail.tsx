@@ -121,7 +121,7 @@ export function JobDetailRoute() {
         description={`${j.profile_id ?? "—"} → ${j.target_id ?? "—"}`}
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate("/jobs")}>
-            <ArrowLeft size={14} /> All jobs
+            <ArrowLeft size={14} aria-hidden /> All jobs
           </Button>
         }
       />
@@ -178,10 +178,10 @@ export function JobDetailRoute() {
               onClick={downloadXlsx}
               disabled={!canDownload}
             >
-              <Download size={14} /> Download xlsx
+              <Download size={14} aria-hidden /> Download xlsx
             </Button>
             <Button variant="outline" size="md" className="w-full" onClick={copyCurl}>
-              <TerminalSquare size={14} /> Copy curl
+              <TerminalSquare size={14} aria-hidden /> Copy curl
             </Button>
 
             {j.status === "parked" && (
@@ -201,7 +201,7 @@ export function JobDetailRoute() {
                     onClick={() => approve.mutate()}
                     loading={approve.isPending}
                   >
-                    <Check size={14} /> Approve
+                    <Check size={14} aria-hidden /> Approve
                   </Button>
                   <Button
                     variant="danger"
@@ -209,7 +209,7 @@ export function JobDetailRoute() {
                     onClick={() => reject.mutate()}
                     loading={reject.isPending}
                   >
-                    <X size={14} /> Reject
+                    <X size={14} aria-hidden /> Reject
                   </Button>
                 </div>
               </div>
@@ -217,7 +217,7 @@ export function JobDetailRoute() {
 
             {j.status === "succeeded" && (
               <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
-                <CheckCircle2 size={12} className="text-success" />
+                <CheckCircle2 size={12} aria-hidden className="text-success" />
                 Output ready for download.
               </p>
             )}

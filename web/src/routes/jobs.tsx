@@ -51,6 +51,7 @@ export function JobsRoute() {
 
       <div className="flex items-center gap-3 flex-wrap mb-4">
         <Select
+          aria-label="Filter jobs by status"
           options={STATUSES}
           value={status}
           onChange={(e) => {
@@ -139,7 +140,7 @@ export function JobsRoute() {
                           to={`/jobs/${j.id}`}
                           className="text-primary hover:underline inline-flex items-center gap-1 text-xs font-medium"
                         >
-                          Open <ArrowRight size={12} />
+                          Open <ArrowRight size={12} aria-hidden />
                         </Link>
                       </td>
                     </tr>
