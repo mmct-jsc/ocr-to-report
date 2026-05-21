@@ -32,6 +32,19 @@ import { useTheme } from "@/lib/theme";
  * intentionally does NOT use the AppLayout (no sidebar) so it works as
  * a marketing landing target.
  */
+
+/**
+ * Prefix a public-asset path with Vite's resolved ``base`` so the
+ * built URL works on both ``/`` (docker / nginx) and ``/ocr-to-report/``
+ * (GitHub Pages subpath deploy). Without this, ``/demo-assets/foo.png``
+ * 404s on Pages because it resolves to the host root instead of the
+ * project subdirectory.
+ */
+function withBase(path: string): string {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return base + (path.startsWith("/") ? path : `/${path}`);
+}
+
 export function DemoRoute() {
   const { theme, toggle } = useTheme();
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
@@ -427,14 +440,14 @@ function Feature({
           <div className="bg-muted/30 p-4 md:p-6 lg:border-l border-border min-h-[200px] flex items-center justify-center">
             <div className="space-y-3">
               <img
-                src={primary}
+                src={withBase(primary)}
                 alt={title}
                 className="w-full rounded-lg border border-border shadow-sm"
                 loading="lazy"
               />
               {secondaryShot && (
                 <img
-                  src={secondaryShot}
+                  src={withBase(secondaryShot)}
                   alt={`${title} (detail)`}
                   className="w-full rounded-lg border border-border shadow-sm"
                   loading="lazy"
