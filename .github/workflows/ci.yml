@@ -80,7 +80,21 @@ jobs:
       - run: uv run bandit -c pyproject.toml -r packages
       # CVE-2026-3219 in pip itself has no fixed version; pip is a build-time tool not used
       # at runtime by this app (we use uv). Re-evaluate on every uv sync.
-      - run: uv run pip-audit --strict --skip-editable --ignore-vuln CVE-2026-3219
+        # ``--ignore-package`` per workspace member: pip-audit's
+        # ``--skip-editable`` still errors with ``--strict`` because the
+        # editable package can't be audited at all. Listing each one
+        # explicitly tells pip-audit "we own these, don't try" — and
+        # any future CVE in a real PyPI dep still fails the run.
+      - run: |
+          uv run pip-audit --strict \
+            --ignore-vuln CVE-2026-3219 \
+            --ignore-package ocr-to-report-core \
+            --ignore-package ocr-to-report-adapters \
+            --ignore-package ocr-to-report-api \
+            --ignore-package ocr-to-report-worker \
+            --ignore-package ocr-to-report-cli \
+            --ignore-package ocr-to-report-sdk-py \
+            --ignore-package ocr-to-report-mcp
 
   test:
     name: Tests + Coverage
@@ -146,7 +160,12 @@ jobs:
           tags: ocr2r-api:scan
           cache-from: type=gha
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@0.28.0
+        # Pinned to a real released tag — ``0.28.0`` was referenced
+        # before but doesn't exist on the action repo. ``0.36.0`` is
+        # the current stable (see github.com/aquasecurity/trivy-action
+        # /releases). Bump deliberately; ``@master`` would be a
+        # supply-chain risk.
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ocr2r-api:scan
           format: table
