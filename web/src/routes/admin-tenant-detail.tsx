@@ -28,6 +28,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 const TIERS = [
   { value: "economy", label: "economy" },
@@ -80,6 +81,11 @@ export function AdminTenantDetailRoute() {
   });
   const [createdKey, setCreatedKey] = useState<{ id: string; secret: string } | null>(null);
   const [secretShown, setSecretShown] = useState(false);
+  // Revoke confirmation. We hold the key row so the dialog can show
+  // label + prefix, not a UUID. null when closed.
+  const [pendingRevoke, setPendingRevoke] = useState<
+    { id: string; label: string | null; prefix: string } | null
+  >(null);
 
   const issueKey = useMutation({
     mutationFn: () => client.admin.issueApiKey(tenantId, keyForm),
@@ -98,8 +104,12 @@ export function AdminTenantDetailRoute() {
     onSuccess: () => {
       toast.success("API key revoked");
       qc.invalidateQueries({ queryKey: ["admin", "tenant-keys", tenantId] });
+      setPendingRevoke(null);
     },
-    onError: (e) => toast.error("Revoke failed", e instanceof Error ? e.message : "unknown"),
+    onError: (e) => {
+      toast.error("Revoke failed", e instanceof Error ? e.message : "unknown");
+      setPendingRevoke(null);
+    },
   });
 
   if (tenants.isLoading) {
@@ -306,9 +316,13 @@ export function AdminTenantDetailRoute() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (confirm(`Revoke key ${k.prefix}…?`)) revokeKey.mutate(k.id);
-                        }}
+                        onClick={() =>
+                          setPendingRevoke({
+                            id: k.id,
+                            label: k.label,
+                            prefix: k.prefix,
+                          })
+                        }
                       >
                         <Trash2 size={12} aria-hidden /> Revoke
                       </Button>
@@ -418,6 +432,26 @@ export function AdminTenantDetailRoute() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={pendingRevoke !== null}
+        onClose={() => setPendingRevoke(null)}
+        onConfirm={() => {
+          if (pendingRevoke) revokeKey.mutate(pendingRevoke.id);
+        }}
+        title={`Revoke key ${pendingRevoke?.label ?? pendingRevoke?.prefix ?? ""}?`}
+        description={
+          <>
+            Active sessions using <code className="font-mono text-xs">{pendingRevoke?.prefix}…</code>{" "}
+            will fail with <strong>401</strong> immediately. This can't be undone — issue a new
+            key to replace it.
+          </>
+        }
+        confirmLabel="Revoke key"
+        cancelLabel="Keep key"
+        tone="danger"
+        pending={revokeKey.isPending}
+      />
     </>
   );
 }

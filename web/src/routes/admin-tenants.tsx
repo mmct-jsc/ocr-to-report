@@ -20,6 +20,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 const TIERS = [
   { value: "economy", label: "Economy (batch only, ~$0.005)" },
@@ -35,6 +36,12 @@ export function AdminTenantsRoute() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [includeArchived, setIncludeArchived] = useState(false);
+  // Archive confirmation. We hold the *tenant* in state (not just the id)
+  // so the dialog can show the name + slug rather than a UUID. null when
+  // closed.
+  const [pendingArchive, setPendingArchive] = useState<
+    { id: string; name: string } | null
+  >(null);
 
   const tenants = useQuery({
     queryKey: ["admin", "tenants", includeArchived],
@@ -46,8 +53,12 @@ export function AdminTenantsRoute() {
     onSuccess: () => {
       toast.success("Tenant archived");
       qc.invalidateQueries({ queryKey: ["admin", "tenants"] });
+      setPendingArchive(null);
     },
-    onError: (e) => toast.error("Archive failed", e instanceof Error ? e.message : "unknown"),
+    onError: (e) => {
+      toast.error("Archive failed", e instanceof Error ? e.message : "unknown");
+      setPendingArchive(null);
+    },
   });
 
   return (
@@ -119,9 +130,9 @@ export function AdminTenantsRoute() {
                         {!t.archived_at && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`Archive "${t.name}"?`)) archive.mutate(t.id);
-                            }}
+                            onClick={() =>
+                              setPendingArchive({ id: t.id, name: t.name })
+                            }
                             className="text-xs text-muted-foreground hover:text-danger inline-flex items-center gap-1"
                           >
                             <Archive size={12} aria-hidden /> Archive
@@ -148,6 +159,25 @@ export function AdminTenantsRoute() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={pendingArchive !== null}
+        onClose={() => setPendingArchive(null)}
+        onConfirm={() => {
+          if (pendingArchive) archive.mutate(pendingArchive.id);
+        }}
+        title={`Archive ${pendingArchive?.name ?? "tenant"}?`}
+        description={
+          <>
+            Archived tenants stop accepting new requests, but keys, jobs, and audit
+            history are preserved. You can restore from the tenant detail page.
+          </>
+        }
+        confirmLabel="Archive"
+        cancelLabel="Keep tenant"
+        tone="danger"
+        pending={archive.isPending}
+      />
     </>
   );
 }
