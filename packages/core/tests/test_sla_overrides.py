@@ -10,6 +10,7 @@ patches surface as Pydantic ValidationError that the API maps to 400.
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 from hypothesis import given
@@ -205,8 +206,6 @@ def test_apply_then_dump_round_trips() -> None:
     """Apply patches, dump the result through JSON, validate again — equal.
     Catches future regressions where round-tripping breaks (e.g., a
     new field that doesn't survive ``model_dump(mode='json')``)."""
-    import json as _json
-
     base = _standard()
     resolved = resolve_with_overrides(
         base,
@@ -215,7 +214,7 @@ def test_apply_then_dump_round_trips() -> None:
     # The JSON path is the one the resolver uses internally — round-trip
     # via the same channel to verify symmetry.
     rehydrated = TenantSlaConfig.model_validate_json(
-        _json.dumps(resolved.model_dump(mode="json"))
+        json.dumps(resolved.model_dump(mode="json"))
     )
     assert resolved == rehydrated
 

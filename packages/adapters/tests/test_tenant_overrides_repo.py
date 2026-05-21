@@ -134,10 +134,16 @@ async def test_list_for_tenant_returns_only_enabled_rows(
 ) -> None:
     repo = TenantOverrideRepo(session)
     await repo.upsert(
-        tenant_id=tenant_id, scope="sla", target_id=None, patches=[{"op": "set", "path": "x", "value": 1}],
+        tenant_id=tenant_id,
+        scope="sla",
+        target_id=None,
+        patches=[{"op": "set", "path": "x", "value": 1}],
     )
     await repo.upsert(
-        tenant_id=tenant_id, scope="pipeline", target_id=None, patches=[{"op": "set", "path": "y", "value": 2}],
+        tenant_id=tenant_id,
+        scope="pipeline",
+        target_id=None,
+        patches=[{"op": "set", "path": "y", "value": 2}],
         enabled=False,
     )
     rows = await repo.list_for_tenant(tenant_id)
@@ -151,7 +157,10 @@ async def test_list_for_tenant_filters_by_scope(
 ) -> None:
     repo = TenantOverrideRepo(session)
     await repo.upsert(
-        tenant_id=tenant_id, scope="sla", target_id=None, patches=[{"op": "set", "path": "x", "value": 1}],
+        tenant_id=tenant_id,
+        scope="sla",
+        target_id=None,
+        patches=[{"op": "set", "path": "x", "value": 1}],
     )
     await repo.upsert(
         tenant_id=tenant_id, scope="template", target_id="us-hs.v1",
@@ -168,7 +177,10 @@ async def test_delete_removes_row(
 ) -> None:
     repo = TenantOverrideRepo(session)
     row = await repo.upsert(
-        tenant_id=tenant_id, scope="sla", target_id=None, patches=[{"op": "set", "path": "x", "value": 1}],
+        tenant_id=tenant_id,
+        scope="sla",
+        target_id=None,
+        patches=[{"op": "set", "path": "x", "value": 1}],
     )
     deleted = await repo.delete(tenant_id=tenant_id, scope="sla", target_id=None)
     assert deleted is True

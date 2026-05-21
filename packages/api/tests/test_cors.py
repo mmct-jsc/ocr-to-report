@@ -82,7 +82,7 @@ def test_preflight_rejected_for_origin_not_in_allowlist() -> None:
     # Starlette's CORSMiddleware lets the request through to the router
     # when origin isn't allowed — without the Allow-Origin header, the
     # browser blocks it client-side. Verify no Allow-Origin echoed.
-    assert "access-control-allow-origin" not in {h.lower() for h in r.headers.keys()}
+    assert "access-control-allow-origin" not in {h.lower() for h in r.headers}
 
 
 def test_preflight_succeeds_with_origin_regex() -> None:

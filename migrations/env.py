@@ -11,15 +11,16 @@ package so autogenerate sees every ORM model we ship.
 
 from __future__ import annotations
 
+import contextlib
 import os
-from logging.config import fileConfig
-
-from alembic import context
-from sqlalchemy import engine_from_config, pool
 
 # Make sure the workspace packages are importable.
 import sys
+from logging.config import fileConfig
 from pathlib import Path
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 for pkg in ("core", "adapters", "api", "worker", "cli", "sdk_py", "mcp"):
@@ -27,11 +28,10 @@ for pkg in ("core", "adapters", "api", "worker", "cli", "sdk_py", "mcp"):
     if src.exists() and str(src) not in sys.path:
         sys.path.insert(0, str(src))
 
-from ocr_to_report.adapters.db.base import Base  # noqa: E402
-
 # Import every module that defines ORM models so they register themselves
 # on Base.metadata before autogenerate inspects it.
 import ocr_to_report.adapters.db.models  # noqa: F401, E402
+from ocr_to_report.adapters.db.base import Base  # noqa: E402
 
 config = context.config
 
@@ -48,12 +48,10 @@ if env_url:
     config.set_main_option("sqlalchemy.url", sync_url)
 
 if config.config_file_name is not None:
-    try:
+    # The minimal alembic.ini we ship may omit logging sections; that's
+    # fine — fall back to alembic's defaults rather than crashing.
+    with contextlib.suppress(KeyError):
         fileConfig(config.config_file_name)
-    except KeyError:
-        # The minimal alembic.ini we ship may omit logging sections; this
-        # is fine — fall back to alembic's defaults.
-        pass
 
 target_metadata = Base.metadata
 
