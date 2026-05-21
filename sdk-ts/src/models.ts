@@ -87,6 +87,64 @@ export interface TemplatesResponse {
   targets: TargetInfo[];
 }
 
+/**
+ * Server response for ``POST /v1/templates/{target_id}/{template_key}``.
+ *
+ * The ``blob_key`` is the storage key the server picked — it embeds the
+ * upload's sha256, so re-uploading the same bytes is idempotent at the
+ * blob layer. The web UI doesn't need to interpret it; it's surfaced
+ * for support diagnostics.
+ */
+export interface CustomTemplateResponse {
+  target_id: string;
+  template_key: string;
+  blob_key: string;
+  sha256: string;
+  size_bytes: number;
+}
+
+// ─── Tenant config (override patches) ────────────────────────
+/**
+ * One DB-wire-format patch. The server's resolver validates ``op`` is
+ * one of the known operations and ``path`` is a non-empty string;
+ * deeper validation happens lazily at apply time.
+ */
+export interface OverridePatch {
+  op: "set" | "delete" | "append" | "merge";
+  path: string;
+  value?: unknown;
+}
+
+/**
+ * Replacement body for ``PUT /v1/tenant/config`` and ``POST
+ * /v1/tenant/config:preview``.
+ *
+ * Every field is optional — sending ``{ sla_patches: [...] }`` replaces
+ * JUST the SLA patches and leaves profile/target rows alone. To clear a
+ * scope, send an explicit empty list.
+ */
+export interface TenantConfigUpdate {
+  sla_patches?: OverridePatch[] | null;
+  profile_overrides?: Record<string, OverridePatch[]> | null;
+  target_overrides?: Record<string, OverridePatch[]> | null;
+}
+
+/**
+ * Resolved view returned by ``GET /v1/tenant/config`` and
+ * ``POST /v1/tenant/config:preview``.
+ *
+ * ``sla`` is the tier preset with any ``sla_patches`` applied. The
+ * raw patch lists are surfaced alongside so the UI can render its
+ * diff editor without re-deriving from the resolved view.
+ */
+export interface TenantConfigResponse {
+  sla: Record<string, unknown>;
+  pipeline_id: string;
+  sla_patches: OverridePatch[];
+  profile_overrides: Record<string, OverridePatch[]>;
+  target_overrides: Record<string, OverridePatch[]>;
+}
+
 // ─── Admin ───────────────────────────────────────────────────
 export interface TenantSummary {
   id: string;

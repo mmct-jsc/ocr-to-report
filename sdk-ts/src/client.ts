@@ -27,9 +27,12 @@ import type {
   ApiKeyIssueRequest,
   ApiKeyIssueResponse,
   AuditEntrySummary,
+  CustomTemplateResponse,
   JobSummary,
   SystemOverview,
   TemplatesResponse,
+  TenantConfigResponse,
+  TenantConfigUpdate,
   TenantCreateRequest,
   TenantSummary,
   TenantUpdateRequest,
@@ -77,6 +80,7 @@ export class Client {
   public readonly webhooks: WebhooksResource;
   public readonly usage: UsageResource;
   public readonly templates: TemplatesResource;
+  public readonly tenantConfig: TenantConfigResource;
   public readonly admin: AdminResource;
 
   private readonly baseUrl: string;
@@ -101,6 +105,7 @@ export class Client {
     this.usage = new UsageResource(this);
     this.admin = new AdminResource(this);
     this.templates = new TemplatesResource(this);
+    this.tenantConfig = new TenantConfigResource(this);
   }
 
   /**
@@ -313,6 +318,94 @@ class TemplatesResource {
       path: "/v1/templates",
     });
     return (await response.json()) as TemplatesResponse;
+  }
+
+  /**
+   * Upload a tenant-specific xlsx template that replaces the shipped
+   * template for ``(targetId, templateKey)`` for THIS tenant only.
+   *
+   * The server validates magic bytes (PK\x03\x04 ZIP header) and runs
+   * ``openpyxl.load_workbook`` round-trip; anything that fails either
+   * check raises an :class:`SDKError` with the server's problem detail.
+   */
+  async upload(args: {
+    targetId: string;
+    templateKey: string;
+    file: Blob;
+    filename: string;
+  }): Promise<CustomTemplateResponse> {
+    const fd = new FormData();
+    fd.append("template_file", args.file, args.filename);
+    const response = await this.client._call({
+      method: "POST",
+      path: `/v1/templates/${encodeURIComponent(args.targetId)}/${encodeURIComponent(args.templateKey)}`,
+      body: fd,
+    });
+    return (await response.json()) as CustomTemplateResponse;
+  }
+
+  /**
+   * Drop the tenant's custom template for ``(targetId, templateKey)``.
+   * Subsequent jobs render against the shipped on-disk template again.
+   *
+   * 204 No Content on success; 404 if no override existed.
+   */
+  async delete(args: { targetId: string; templateKey: string }): Promise<void> {
+    await this.client._call({
+      method: "DELETE",
+      path: `/v1/templates/${encodeURIComponent(args.targetId)}/${encodeURIComponent(args.templateKey)}`,
+    });
+  }
+}
+
+/**
+ * Per-tenant override config: ``GET /v1/tenant/config``,
+ * ``POST /v1/tenant/config:preview`` (dry-run apply), and
+ * ``PUT /v1/tenant/config`` (persist).
+ *
+ * The wire format uses raw ``{ op, path, value }`` patches. Validation
+ * happens server-side; bad patches raise :class:`SDKError` with the
+ * server's problem detail.
+ */
+class TenantConfigResource {
+  constructor(private readonly client: Client) {}
+
+  async get(): Promise<TenantConfigResponse> {
+    const response = await this.client._call({
+      method: "GET",
+      path: "/v1/tenant/config",
+    });
+    return (await response.json()) as TenantConfigResponse;
+  }
+
+  /**
+   * Apply ``body`` against the current config WITHOUT persisting.
+   * Returns the resolved view as if the patches had been saved — useful
+   * for "preview the diff before you save" UIs.
+   */
+  async preview(body: TenantConfigUpdate): Promise<TenantConfigResponse> {
+    const response = await this.client._call({
+      method: "POST",
+      path: "/v1/tenant/config:preview",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    return (await response.json()) as TenantConfigResponse;
+  }
+
+  /**
+   * Replace patch lists per scope (sla / profile / target). Omitting a
+   * field leaves that scope unchanged; sending an empty list clears it.
+   * Returns the persisted resolved view.
+   */
+  async replace(body: TenantConfigUpdate): Promise<TenantConfigResponse> {
+    const response = await this.client._call({
+      method: "PUT",
+      path: "/v1/tenant/config",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    return (await response.json()) as TenantConfigResponse;
   }
 }
 

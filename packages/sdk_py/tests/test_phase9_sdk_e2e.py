@@ -356,3 +356,122 @@ def test_forbidden_error_class_exists() -> None:
     """ForbiddenError is part of the public surface used by economy
     tier callers; import-only smoke."""
     assert issubclass(ForbiddenError, Exception)
+
+
+# ─── v0.2.0 Task 7: tenant_config + templates.upload ─────────
+
+
+def test_sync_tenant_config_get_returns_baseline(sync_client: Client) -> None:
+    """Fresh tenant: GET surfaces the tier preset + empty patch lists."""
+    cfg = sync_client.tenant_config.get()
+    # Standard tier ships a confidence_threshold; the exact value can drift,
+    # but the field must be present and float-like.
+    assert "confidence_threshold" in cfg.sla
+    assert isinstance(cfg.sla["confidence_threshold"], int | float)
+    assert cfg.sla_patches == []
+    assert cfg.profile_overrides == {}
+    assert cfg.target_overrides == {}
+
+
+def test_sync_tenant_config_preview_does_not_persist(sync_client: Client) -> None:
+    """`:preview` returns the resolved view without writing the override."""
+    from ocr_to_report.sdk_py.models import TenantConfigUpdate  # noqa: PLC0415
+
+    pre = sync_client.tenant_config.get()
+    baseline = pre.sla["confidence_threshold"]
+
+    preview = sync_client.tenant_config.preview(
+        TenantConfigUpdate(
+            sla_patches=[{"op": "set", "path": "confidence_threshold", "value": 0.93}]
+        )
+    )
+    assert preview.sla["confidence_threshold"] == 0.93
+
+    # A fresh GET still shows the baseline (no persistence happened).
+    post = sync_client.tenant_config.get()
+    assert post.sla["confidence_threshold"] == baseline
+    assert post.sla_patches == []
+
+
+def test_sync_tenant_config_replace_persists(sync_client: Client) -> None:
+    """PUT writes the patch; subsequent GET reflects it."""
+    from ocr_to_report.sdk_py.models import TenantConfigUpdate  # noqa: PLC0415
+
+    sync_client.tenant_config.replace(
+        TenantConfigUpdate(
+            sla_patches=[{"op": "set", "path": "confidence_threshold", "value": 0.91}]
+        )
+    )
+    fresh = sync_client.tenant_config.get()
+    assert fresh.sla["confidence_threshold"] == 0.91
+    assert fresh.sla_patches == [{"op": "set", "path": "confidence_threshold", "value": 0.91}]
+
+
+def _custom_xlsx() -> bytes:
+    """Watermarked xlsx — Z1 holds a sentinel string the shipped template lacks."""
+    from openpyxl import Workbook  # noqa: PLC0415
+
+    wb = Workbook()
+    sheet = wb.active
+    assert sheet is not None
+    sheet["Z1"] = "TENANT-CUSTOM-MARKER"
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def test_sync_templates_upload_returns_blob_key(sync_client: Client) -> None:
+    """Upload echoes back blob_key + sha256 + size."""
+    payload = _custom_xlsx()
+    resp = sync_client.templates.upload(
+        target_id="us-hs.v1",
+        template_key="grade_9",
+        file_bytes=payload,
+        filename="custom.xlsx",
+    )
+    assert resp.target_id == "us-hs.v1"
+    assert resp.template_key == "grade_9"
+    assert resp.size_bytes == len(payload)
+    assert resp.blob_key.endswith(".xlsx")
+    assert len(resp.sha256) == 64
+
+
+def test_sync_templates_delete_removes_override(sync_client: Client) -> None:
+    """After upload+delete, the override row is gone from tenant config."""
+    sync_client.templates.upload(
+        target_id="us-hs.v1",
+        template_key="grade_9",
+        file_bytes=_custom_xlsx(),
+        filename="custom.xlsx",
+    )
+    # Upload registered an override; tenant_config reflects it.
+    after_upload = sync_client.tenant_config.get()
+    assert "us-hs.v1" in after_upload.target_overrides
+
+    sync_client.templates.delete(target_id="us-hs.v1", template_key="grade_9")
+
+    after_delete = sync_client.tenant_config.get()
+    assert "us-hs.v1" not in after_delete.target_overrides
+
+
+# ─── Async parity smoke ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_async_tenant_config_get(async_client: AsyncClient) -> None:
+    """Async client exposes the same tenant_config surface."""
+    cfg = await async_client.tenant_config.get()
+    assert "confidence_threshold" in cfg.sla
+
+
+@pytest.mark.asyncio
+async def test_async_templates_upload_round_trip(async_client: AsyncClient) -> None:
+    """Async upload + delete round-trip."""
+    resp = await async_client.templates.upload(
+        target_id="us-hs.v1",
+        template_key="grade_9",
+        file_bytes=_custom_xlsx(),
+        filename="custom.xlsx",
+    )
+    assert resp.size_bytes > 0
+    await async_client.templates.delete(target_id="us-hs.v1", template_key="grade_9")

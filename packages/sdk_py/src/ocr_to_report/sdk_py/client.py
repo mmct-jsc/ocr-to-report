@@ -27,8 +27,11 @@ import httpx
 from ocr_to_report.sdk_py import errors
 from ocr_to_report.sdk_py.models import (
     BatchAcceptedResponse,
+    CustomTemplateResponse,
     JobSummary,
     TemplatesResponse,
+    TenantConfigResponse,
+    TenantConfigUpdate,
     TranscriptExtractionResponse,
     UsageResponse,
     WebhookCreateResponse,
@@ -95,6 +98,7 @@ class Client:
         self.webhooks = WebhooksResource(self)
         self.usage = UsageResource(self)
         self.templates = TemplatesResource(self)
+        self.tenant_config = TenantConfigResource(self)
 
     def __enter__(self) -> Client:
         return self
@@ -154,6 +158,7 @@ class AsyncClient:
         self.webhooks = AsyncWebhooksResource(self)
         self.usage = AsyncUsageResource(self)
         self.templates = AsyncTemplatesResource(self)
+        self.tenant_config = AsyncTenantConfigResource(self)
 
     async def __aenter__(self) -> AsyncClient:
         return self
@@ -330,6 +335,74 @@ class TemplatesResource:
         response = self._client._call("GET", "/v1/templates")
         return TemplatesResponse.model_validate(response.json())
 
+    def upload(
+        self,
+        *,
+        target_id: str,
+        template_key: str,
+        file_bytes: bytes,
+        filename: str = "template.xlsx",
+    ) -> CustomTemplateResponse:
+        """Upload a tenant-specific xlsx that replaces the shipped template.
+
+        The server validates magic bytes (``PK\\x03\\x04`` ZIP header) and
+        runs ``openpyxl.load_workbook`` round-trip; anything that fails
+        either check raises a typed SDK error.
+        """
+        files = [
+            (
+                "template_file",
+                (
+                    filename,
+                    file_bytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+            )
+        ]
+        response = self._client._call(
+            "POST",
+            f"/v1/templates/{target_id}/{template_key}",
+            files=files,
+        )
+        return CustomTemplateResponse.model_validate(response.json())
+
+    def delete(self, *, target_id: str, template_key: str) -> None:
+        """Remove the tenant's custom template; revert to the shipped one.
+
+        Returns nothing on success (204). Raises ``NotFoundError`` if no
+        override exists for the slot.
+        """
+        self._client._call("DELETE", f"/v1/templates/{target_id}/{template_key}")
+
+
+class TenantConfigResource:
+    """``/v1/tenant/config`` — per-tenant override CRUD."""
+
+    def __init__(self, client: Client) -> None:
+        self._client = client
+
+    def get(self) -> TenantConfigResponse:
+        response = self._client._call("GET", "/v1/tenant/config")
+        return TenantConfigResponse.model_validate(response.json())
+
+    def preview(self, body: TenantConfigUpdate) -> TenantConfigResponse:
+        """Apply ``body`` against the current config WITHOUT persisting."""
+        response = self._client._call(
+            "POST",
+            "/v1/tenant/config:preview",
+            json_body=body.model_dump(mode="json", exclude_none=True),
+        )
+        return TenantConfigResponse.model_validate(response.json())
+
+    def replace(self, body: TenantConfigUpdate) -> TenantConfigResponse:
+        """Persist ``body``. Returns the resolved view after writes."""
+        response = self._client._call(
+            "PUT",
+            "/v1/tenant/config",
+            json_body=body.model_dump(mode="json", exclude_none=True),
+        )
+        return TenantConfigResponse.model_validate(response.json())
+
 
 # ─── Async resources (mirror the sync ones) ──────────────────
 class AsyncTranscriptsResource:
@@ -463,17 +536,74 @@ class AsyncTemplatesResource:
         response = await self._client._call("GET", "/v1/templates")
         return TemplatesResponse.model_validate(response.json())
 
+    async def upload(
+        self,
+        *,
+        target_id: str,
+        template_key: str,
+        file_bytes: bytes,
+        filename: str = "template.xlsx",
+    ) -> CustomTemplateResponse:
+        files = [
+            (
+                "template_file",
+                (
+                    filename,
+                    file_bytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+            )
+        ]
+        response = await self._client._call(
+            "POST",
+            f"/v1/templates/{target_id}/{template_key}",
+            files=files,
+        )
+        return CustomTemplateResponse.model_validate(response.json())
+
+    async def delete(self, *, target_id: str, template_key: str) -> None:
+        await self._client._call("DELETE", f"/v1/templates/{target_id}/{template_key}")
+
+
+class AsyncTenantConfigResource:
+    """Async variant of :class:`TenantConfigResource`."""
+
+    def __init__(self, client: AsyncClient) -> None:
+        self._client = client
+
+    async def get(self) -> TenantConfigResponse:
+        response = await self._client._call("GET", "/v1/tenant/config")
+        return TenantConfigResponse.model_validate(response.json())
+
+    async def preview(self, body: TenantConfigUpdate) -> TenantConfigResponse:
+        response = await self._client._call(
+            "POST",
+            "/v1/tenant/config:preview",
+            json_body=body.model_dump(mode="json", exclude_none=True),
+        )
+        return TenantConfigResponse.model_validate(response.json())
+
+    async def replace(self, body: TenantConfigUpdate) -> TenantConfigResponse:
+        response = await self._client._call(
+            "PUT",
+            "/v1/tenant/config",
+            json_body=body.model_dump(mode="json", exclude_none=True),
+        )
+        return TenantConfigResponse.model_validate(response.json())
+
 
 __all__ = [
     "AsyncClient",
     "AsyncJobsResource",
     "AsyncTemplatesResource",
+    "AsyncTenantConfigResource",
     "AsyncTranscriptsResource",
     "AsyncUsageResource",
     "AsyncWebhooksResource",
     "Client",
     "JobsResource",
     "TemplatesResource",
+    "TenantConfigResource",
     "TranscriptsResource",
     "UsageResource",
     "WebhooksResource",

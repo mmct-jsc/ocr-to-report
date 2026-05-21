@@ -452,3 +452,162 @@ describe("Client tenant impersonation", () => {
     expect(fake.calls[1]!.headers.has("X-Acting-Tenant-Id")).toBe(false);
   });
 });
+
+// ─── v0.2.0 Task 7: tenantConfig + templates.upload ──────────────────
+
+describe("Client.tenantConfig", () => {
+  it("get hits /v1/tenant/config with auth", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          sla: { tier: "standard", confidence_threshold: 0.85 },
+          pipeline_id: "default_v1",
+          sla_patches: [],
+          profile_overrides: {},
+          target_overrides: {},
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    const cfg = await client.tenantConfig.get();
+    expect(cfg.sla.tier).toBe("standard");
+    expect(fake.calls[0]!.url).toBe("http://test/v1/tenant/config");
+    expect(fake.calls[0]!.method).toBe("GET");
+    expect(fake.calls[0]!.headers.get("authorization")).toBe("Bearer sk_test");
+  });
+
+  it("preview POSTs the body to :preview without persisting", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          sla: { tier: "standard", confidence_threshold: 0.93 },
+          pipeline_id: "default_v1",
+          sla_patches: [{ op: "set", path: "confidence_threshold", value: 0.93 }],
+          profile_overrides: {},
+          target_overrides: {},
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    const result = await client.tenantConfig.preview({
+      sla_patches: [{ op: "set", path: "confidence_threshold", value: 0.93 }],
+    });
+    expect(result.sla.confidence_threshold).toBe(0.93);
+    expect(fake.calls[0]!.url).toBe("http://test/v1/tenant/config:preview");
+    expect(fake.calls[0]!.method).toBe("POST");
+    expect(fake.calls[0]!.headers.get("content-type")).toBe("application/json");
+    expect(JSON.parse(fake.calls[0]!.body as string)).toEqual({
+      sla_patches: [{ op: "set", path: "confidence_threshold", value: 0.93 }],
+    });
+  });
+
+  it("replace PUTs the body to /v1/tenant/config", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          sla: { tier: "standard", confidence_threshold: 0.91 },
+          pipeline_id: "default_v1",
+          sla_patches: [{ op: "set", path: "confidence_threshold", value: 0.91 }],
+          profile_overrides: {},
+          target_overrides: {},
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    await client.tenantConfig.replace({
+      sla_patches: [{ op: "set", path: "confidence_threshold", value: 0.91 }],
+    });
+    expect(fake.calls[0]!.url).toBe("http://test/v1/tenant/config");
+    expect(fake.calls[0]!.method).toBe("PUT");
+  });
+});
+
+describe("Client.templates.upload", () => {
+  it("posts multipart template_file to /v1/templates/{target}/{key}", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          target_id: "us-hs.v1",
+          template_key: "grade_9",
+          blob_key: "tenant/t/templates/us-hs.v1/grade_9/abc.xlsx",
+          sha256: "abc",
+          size_bytes: 1234,
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    const response = await client.templates.upload({
+      targetId: "us-hs.v1",
+      templateKey: "grade_9",
+      file: new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      filename: "custom.xlsx",
+    });
+    expect(response.blob_key).toBe("tenant/t/templates/us-hs.v1/grade_9/abc.xlsx");
+    expect(fake.calls[0]!.url).toBe("http://test/v1/templates/us-hs.v1/grade_9");
+    expect(fake.calls[0]!.method).toBe("POST");
+    // FormData body: content-type defaults to multipart with a boundary —
+    // we just check it's not JSON.
+    expect(fake.calls[0]!.headers.get("content-type") ?? "").not.toBe("application/json");
+  });
+
+  it("url-encodes special chars in target_id / template_key", async () => {
+    const fake = makeFakeFetch(async () =>
+      new Response(
+        JSON.stringify({
+          target_id: "us hs/v1",
+          template_key: "grade 9",
+          blob_key: "k",
+          sha256: "s",
+          size_bytes: 1,
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    await client.templates.upload({
+      targetId: "us hs/v1",
+      templateKey: "grade 9",
+      file: new Blob([new Uint8Array([0x50, 0x4b])], { type: "x" }),
+      filename: "x.xlsx",
+    });
+    expect(fake.calls[0]!.url).toBe("http://test/v1/templates/us%20hs%2Fv1/grade%209");
+  });
+
+  it("delete DELETEs the slot", async () => {
+    const fake = makeFakeFetch(async () => new Response(null, { status: 204 }));
+    const client = new Client({
+      baseUrl: "http://test",
+      apiKey: "sk_test",
+      fetchImpl: fake.fetch,
+    });
+    await client.templates.delete({ targetId: "us-hs.v1", templateKey: "grade_9" });
+    expect(fake.calls[0]!.method).toBe("DELETE");
+    expect(fake.calls[0]!.url).toBe("http://test/v1/templates/us-hs.v1/grade_9");
+  });
+});

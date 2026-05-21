@@ -133,12 +133,67 @@ class TemplatesResponse(BaseModel):
     targets: list[TargetInfo]
 
 
+class CustomTemplateResponse(BaseModel):
+    """Body of POST /v1/templates/{target_id}/{template_key}.
+
+    The ``blob_key`` is the storage key the server picked — it embeds
+    the upload's sha256 so re-uploading the same bytes is idempotent at
+    the blob layer. SDK callers can treat it as opaque.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    target_id: str
+    template_key: str
+    blob_key: str
+    sha256: str
+    size_bytes: int
+
+
+# ─── Tenant config (override patches) ────────────────────────
+
+
+class TenantConfigUpdate(BaseModel):
+    """Body for PUT /v1/tenant/config and POST /v1/tenant/config:preview.
+
+    Every field is optional — sending ``{"sla_patches": [...]}`` replaces
+    JUST the SLA patches and leaves profile/target rows alone. To clear
+    a scope, send an explicit empty list.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    sla_patches: list[dict[str, Any]] | None = None
+    profile_overrides: dict[str, list[dict[str, Any]]] | None = None
+    target_overrides: dict[str, list[dict[str, Any]]] | None = None
+
+
+class TenantConfigResponse(BaseModel):
+    """Body of GET /v1/tenant/config + POST /v1/tenant/config:preview.
+
+    ``sla`` is the tier preset with any ``sla_patches`` applied. The raw
+    patch lists ride alongside so a UI can render its diff editor
+    without re-deriving from the resolved view.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    sla: dict[str, Any]
+    pipeline_id: str
+    sla_patches: list[dict[str, Any]] = Field(default_factory=list)
+    profile_overrides: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    target_overrides: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+
+
 __all__ = [
     "BatchAcceptedResponse",
+    "CustomTemplateResponse",
     "JobSummary",
     "TargetInfo",
     "TemplateInfo",
     "TemplatesResponse",
+    "TenantConfigResponse",
+    "TenantConfigUpdate",
     "TranscriptExtractionResponse",
     "UsageResponse",
     "WebhookCreateResponse",
