@@ -12,10 +12,15 @@ Tables shipped in Phase 5 (MVP):
 * ``idempotency_keys`` — 24h replay cache for POST endpoints
 * ``result_cache`` — vision-extraction memoization keyed by image hash
 
-Tables deferred to later phases (per Decision 4): ``users`` (JWT auth,
+Added in v0.2.0:
+
+* ``tenant_overrides`` — per-tenant JSON-patch overrides for pipeline /
+  SLA / template / vocabulary, applied by the override resolver at
+  request time.
+
+Still deferred to later phases (per Decision 4): ``users`` (JWT auth,
 phase 6), ``profile_versions`` / ``target_versions`` / ``templates``
-(loaded from disk in MVP — phase 8 adds DB-stored custom bundles),
-``tenant_overrides`` (phase 8).
+(loaded from disk in MVP — phase 8 adds DB-stored custom bundles).
 """
 
 from __future__ import annotations
@@ -38,7 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ocr_to_report.adapters.db.base import Base, TimestampedMixin
+from ocr_to_report.adapters.db.base import JSONB, Base, TimestampedMixin
 
 
 # ─── tenants ──────────────────────────────────────────────────
@@ -357,6 +362,65 @@ class BatchSubmission(Base, TimestampedMixin):
     __table_args__ = (Index("ix_batch_submissions_tenant_status", "tenant_id", "status"),)
 
 
+# ─── tenant_overrides ─────────────────────────────────────────
+class TenantOverride(Base, TimestampedMixin):
+    """Per-tenant JSON-patch overrides on the universal bundle dicts.
+
+    Each row carries a list of override patches scoped to one of:
+
+    * ``scope='pipeline'`` — patches against the resolved pipeline yaml
+      (e.g., swap pipeline id, tweak step config). ``target_id`` is NULL.
+    * ``scope='sla'`` — patches against the tenant's SLA tier preset
+      (e.g., raise ``confidence_threshold``). ``target_id`` is NULL.
+    * ``scope='profile'`` — patches against the source profile bundle's
+      vocabulary / grade scale / year system. ``target_id`` is the
+      profile id.
+    * ``scope='target'`` — patches against a target bundle's manifest /
+      taxonomy. ``target_id`` is the target id.
+    * ``scope='template'`` — patches that point a template key at a
+      tenant-uploaded xlsx blob. ``target_id`` is the target id.
+
+    The unique constraint on ``(tenant_id, scope, target_id)`` makes
+    upsert by triple the natural primitive; v0.2.0 ships only one row
+    per scope+target, future versions can grow this with versioning if
+    needed.
+
+    The patch dicts validate against
+    ``core.overrides.resolver.OverridePatch`` when applied — invalid
+    patches surface as ``OverrideError`` (HTTP 400) at request time.
+    """
+
+    __tablename__ = "tenant_overrides"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    scope: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # ``list[dict]`` isn't in the type_annotation_map so we bind the
+    # JSONB TypeDecorator explicitly. On Postgres this is native JSONB;
+    # on SQLite it's JSON.
+    patches: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB(), default=list, nullable=False,
+    )
+    """JSONB list of ``{op, path, value}`` documents."""
+
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "scope", "target_id",
+            name="uq_tenant_overrides_scope",
+        ),
+        Index(
+            "ix_tenant_overrides_lookup",
+            "tenant_id", "scope", "enabled",
+        ),
+    )
+
+
 __all__ = [
     "ApiKey",
     "AuditLog",
@@ -365,6 +429,7 @@ __all__ = [
     "Job",
     "ResultCacheRow",
     "Tenant",
+    "TenantOverride",
     "Transcript",
     "UsageRecord",
     "Webhook",

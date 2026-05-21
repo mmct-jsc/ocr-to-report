@@ -61,6 +61,7 @@ def test_baseline_upgrade_creates_all_tables(sqlite_url: str) -> None:
         "idempotency_keys",
         "result_cache",
         "batch_submissions",
+        "tenant_overrides",  # added in 0002
         "alembic_version",
     }
     missing = expected - tables
