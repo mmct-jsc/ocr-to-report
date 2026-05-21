@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Copy, KeyRound, Server, RefreshCw, Settings as SettingsIcon, Workflow, Gauge } from "lucide-react";
+import {
+  Copy,
+  FileSpreadsheet,
+  Gauge,
+  KeyRound,
+  RefreshCw,
+  Server,
+  Settings as SettingsIcon,
+  Sparkles,
+  Workflow,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/toast";
 import { useTheme } from "@/lib/theme";
@@ -17,8 +27,10 @@ import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsList, TabsPanel, TabsTrigger } from "@/components/ui/tabs";
 import { PipelineTab } from "@/components/settings-tabs/pipeline-tab";
 import { SlaTab } from "@/components/settings-tabs/sla-tab";
+import { TemplatesTab } from "@/components/settings-tabs/templates-tab";
+import { VocabularyTab } from "@/components/settings-tabs/vocabulary-tab";
 
-type SettingsTabId = "general" | "pipeline" | "sla";
+type SettingsTabId = "general" | "pipeline" | "sla" | "templates" | "vocabulary";
 
 export function SettingsRoute() {
   const [tab, setTab] = useState<SettingsTabId>("general");
@@ -51,6 +63,16 @@ export function SettingsRoute() {
               <Gauge size={14} aria-hidden /> SLA
             </span>
           </TabsTrigger>
+          <TabsTrigger value="templates">
+            <span className="inline-flex items-center gap-1.5">
+              <FileSpreadsheet size={14} aria-hidden /> Templates
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="vocabulary">
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles size={14} aria-hidden /> Vocabulary
+            </span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsPanel value="general">
@@ -61,6 +83,12 @@ export function SettingsRoute() {
         </TabsPanel>
         <TabsPanel value="sla">
           <SlaTab />
+        </TabsPanel>
+        <TabsPanel value="templates">
+          <TemplatesTab />
+        </TabsPanel>
+        <TabsPanel value="vocabulary">
+          <VocabularyTab />
         </TabsPanel>
       </Tabs>
     </>
