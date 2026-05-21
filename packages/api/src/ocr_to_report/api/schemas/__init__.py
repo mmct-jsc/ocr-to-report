@@ -16,6 +16,12 @@ from ocr_to_report.api.schemas.dsr import (
     DSRErasureResponse,
     DSRPortabilityResponse,
 )
+from ocr_to_report.api.schemas.providers import (
+    ProviderId,
+    ProvidersListResponse,
+    ProviderStatus,
+    ProviderUpsertRequest,
+)
 from ocr_to_report.api.schemas.templates import CustomTemplateResponse
 from ocr_to_report.api.schemas.tenant_config import (
     TenantConfigResponse,
@@ -44,6 +50,10 @@ __all__ = [
     "DSRErasureRequest",
     "DSRErasureResponse",
     "DSRPortabilityResponse",
+    "ProviderId",
+    "ProviderStatus",
+    "ProviderUpsertRequest",
+    "ProvidersListResponse",
     "SystemOverview",
     "TenantConfigResponse",
     "TenantConfigUpdate",
