@@ -38,8 +38,8 @@ from ocr_to_report.api.deps import (
     AppState,
     RequestRepos,
     get_app_state,
+    get_current_sla,
     get_repos,
-    resolve_sla_for_tenant,
 )
 from ocr_to_report.api.schemas import (
     BatchAcceptedResponse,
@@ -75,6 +75,11 @@ router = APIRouter(prefix="/v1", tags=["transcripts"])
 async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are intentionally sequential
     state: Annotated[AppState, Depends(get_app_state)],
     repos: Annotated[RequestRepos, Depends(get_repos)],
+    # ``get_current_sla`` returns the tier preset with any tenant-scoped
+    # ``scope="sla"`` override patches applied — see ``deps.get_resolved_tenant_config``.
+    # A tenant that bumps confidence_threshold from 0.85 to 0.95 will now
+    # park 0.90 extractions instead of auto-rendering them.
+    sla: Annotated[TenantSlaConfig, Depends(get_current_sla)],
     file: Annotated[UploadFile, File(description="PDF or image of the transcript")],
     profile_id: Annotated[str, Form(description="Source profile id")],
     target_id: Annotated[str, Form(description="Target system id")],
@@ -96,7 +101,6 @@ async def create_transcript(  # noqa: PLR0915 — controller; pipeline steps are
     require_safe_upload(blob, max_bytes=state.settings.max_upload_bytes)
 
     # SLA gate: economy tier rejects sync calls.
-    sla = resolve_sla_for_tenant(state, repos.tenant)
     if not sla.sync_allowed:
         raise ForbiddenError(
             f"tenant SLA tier {sla.tier.value!r} does not allow sync /v1/transcripts; "

@@ -31,6 +31,7 @@ from ocr_to_report.adapters.db.repositories import (
     BatchSubmissionRepo,
     IdempotencyRepo,
     JobRepo,
+    TenantOverrideRepo,
     TenantRepo,
     TranscriptRepo,
     UsageRepo,
@@ -55,6 +56,7 @@ from ocr_to_report.core.sla import (
     TenantSlaConfig,
     load_presets_from_dir,
 )
+from ocr_to_report.core.sla.resolver import resolve_with_overrides
 from ocr_to_report.core.targets import TargetRegistry
 
 
@@ -383,11 +385,13 @@ def resolve_sla_for_tenant(
     state: AppState,
     tenant: Tenant,
 ) -> TenantSlaConfig:
-    """Return the SLA config to apply to this tenant's requests.
+    """Return the SLA tier preset for this tenant — *without* overrides.
 
-    MVP behavior: read ``tenant.sla_tier`` and look up the matching
-    preset. Per-field overrides (Phase 8b extension) layer on top via
-    the standard overrides resolver — not yet wired here.
+    Reads ``tenant.sla_tier`` and returns the matching preset. Per-tenant
+    override patches are applied by :func:`get_resolved_tenant_config`,
+    which is the dep request handlers should reach for. This function is
+    kept for callers that explicitly want the un-patched baseline (e.g.
+    diff previews in :mod:`tenant_config` endpoints — Task 5).
     """
     try:
         tier = SlaTier(tenant.sla_tier)
@@ -395,6 +399,105 @@ def resolve_sla_for_tenant(
         # Unknown stored value — fail safe to standard.
         tier = SlaTier.STANDARD
     return state.sla_presets.get(tier, state.sla_presets[SlaTier.STANDARD])
+
+
+# ─── Resolved tenant config (v0.2.0) ──────────────────────────
+
+
+@dataclass(slots=True, frozen=True)
+class ResolvedTenantConfig:
+    """Tenant config with override patches applied.
+
+    Computed once per request by :func:`get_resolved_tenant_config` and
+    cached on ``request.state.resolved_tenant_config`` so multiple deps
+    (SLA, pipeline selector, future ones) share a single DB read. Frozen
+    because resolved config is intentionally immutable — patch changes
+    only land via :mod:`tenant_config` PUTs which clobber the cache by
+    starting a new request.
+
+    Fields:
+
+    * ``sla`` — :class:`TenantSlaConfig` after any ``scope="sla"`` patches.
+    * ``pipeline_id`` — currently the tenant column's value verbatim;
+      Task 5 will surface override patches that swap this on a per-tenant
+      basis.
+    * ``profile_overrides`` / ``target_overrides`` — raw patch lists keyed
+      by ``target_id``. The pipeline runner consumes these when loading
+      the profile / target bundles. None of these are applied here — they
+      ride along so the rest of the request can apply them lazily.
+    """
+
+    sla: TenantSlaConfig
+    pipeline_id: str
+    profile_overrides: dict[str, list[dict[str, Any]]]
+    target_overrides: dict[str, list[dict[str, Any]]]
+
+
+async def get_resolved_tenant_config(
+    request: Request,
+    state: Annotated[AppState, Depends(get_app_state)],
+    auth: Annotated[tuple[ApiKey, Tenant, bytes], Depends(authenticate)],
+) -> ResolvedTenantConfig:
+    """Resolve per-tenant overrides on top of the tier preset.
+
+    Memoized on ``request.state.resolved_tenant_config`` so a single
+    request that touches multiple endpoints (or a single handler that
+    reaches for both SLA + pipeline + target overrides) only pays the
+    one DB round-trip.
+
+    Patches arrive in the DB wire format (``{op, path, value}``) and are
+    delegated to :func:`core.sla.resolver.resolve_with_overrides` for
+    the SLA case — that's where strict Pydantic validation happens, so
+    invalid patches surface as :class:`pydantic.ValidationError` (mapped
+    to HTTP 400 by the existing exception handler).
+    """
+    cached = getattr(request.state, "resolved_tenant_config", None)
+    if cached is not None:
+        return cached  # type: ignore[no-any-return]
+
+    _api_key, tenant, _dek = auth
+    base_sla = resolve_sla_for_tenant(state, tenant)
+
+    sla_patches: list[dict[str, Any]] = []
+    profile_overrides: dict[str, list[dict[str, Any]]] = {}
+    target_overrides: dict[str, list[dict[str, Any]]] = {}
+
+    sm = get_sessionmaker(state.settings.database_url)
+    async with tenant_scoped_session(sm, tenant.id) as session:
+        rows = await TenantOverrideRepo(session).list_for_tenant(tenant.id)
+        for row in rows:
+            if row.scope == "sla":
+                sla_patches.extend(row.patches)
+            elif row.scope == "profile" and row.target_id is not None:
+                profile_overrides.setdefault(row.target_id, []).extend(row.patches)
+            elif row.scope == "target" and row.target_id is not None:
+                target_overrides.setdefault(row.target_id, []).extend(row.patches)
+            # Other scopes (e.g. ``template``, ``pipeline``) are read by
+            # the dedicated callers in Tasks 5 + 6 — don't snag them here.
+
+    resolved_sla = resolve_with_overrides(base_sla, sla_patches) if sla_patches else base_sla
+
+    config = ResolvedTenantConfig(
+        sla=resolved_sla,
+        pipeline_id=tenant.pipeline_id,
+        profile_overrides=profile_overrides,
+        target_overrides=target_overrides,
+    )
+    request.state.resolved_tenant_config = config
+    return config
+
+
+async def get_current_sla(
+    config: Annotated[ResolvedTenantConfig, Depends(get_resolved_tenant_config)],
+) -> TenantSlaConfig:
+    """Shorthand: just the resolved SLA, for endpoints that don't care
+    about pipeline/profile/target overrides.
+
+    Handlers can take ``Depends(get_current_sla)`` directly instead of
+    going through the bigger :class:`ResolvedTenantConfig`. Same DB
+    read either way thanks to the per-request cache.
+    """
+    return config.sla
 
 
 # ─── Lifespan ────────────────────────────────────────────────
@@ -410,14 +513,17 @@ _ = (HTTPException, status, uuid, AsyncIterator, compile_schema, XlsxRenderer)
 __all__ = [
     "AppState",
     "RequestRepos",
+    "ResolvedTenantConfig",
     "authenticate",
     "build_app_state",
     "get_app_state",
     "get_current_api_key",
     "get_current_dek",
+    "get_current_sla",
     "get_current_tenant",
     "get_encryptor",
     "get_repos",
+    "get_resolved_tenant_config",
     "get_settings",
     "require_admin",
     "resolve_sla_for_tenant",
