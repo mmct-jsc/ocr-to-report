@@ -12,6 +12,10 @@ from ocr_to_report.adapters.db.repositories.batch_submissions import BatchSubmis
 from ocr_to_report.adapters.db.repositories.idempotency import IdempotencyRepo
 from ocr_to_report.adapters.db.repositories.jobs import JobRepo
 from ocr_to_report.adapters.db.repositories.tenant_overrides import TenantOverrideRepo
+from ocr_to_report.adapters.db.repositories.tenant_provider_credentials import (
+    TenantCredential,
+    TenantProviderCredentialRepo,
+)
 from ocr_to_report.adapters.db.repositories.tenants import TenantRepo
 from ocr_to_report.adapters.db.repositories.transcripts import TranscriptRepo
 from ocr_to_report.adapters.db.repositories.usage import UsageRepo
@@ -23,7 +27,9 @@ __all__ = [
     "BatchSubmissionRepo",
     "IdempotencyRepo",
     "JobRepo",
+    "TenantCredential",
     "TenantOverrideRepo",
+    "TenantProviderCredentialRepo",
     "TenantRepo",
     "TranscriptRepo",
     "UsageRepo",
