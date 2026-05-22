@@ -291,10 +291,16 @@ class UsageRecord(Base, TimestampedMixin):
     )
 
     __table_args__ = (
+        # v0.3.0: the unique key includes ``billing_path`` so a tenant
+        # can have one ``'platform'`` row + one ``'byok'`` row per
+        # period. The pre-v0.3.0 constraint omitted billing_path; the
+        # 0004 migration drops the old constraint and creates this one
+        # in its place.
         UniqueConstraint(
             "tenant_id",
             "period_start",
             "period_end",
+            "billing_path",
             name="uq_usage_tenant_period",
         ),
         CheckConstraint(

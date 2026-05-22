@@ -46,10 +46,32 @@ def upgrade() -> None:
             "ck_usage_records_billing_path",
             "billing_path IN ('platform', 'byok')",
         )
+        # The pre-v0.3.0 unique constraint was on
+        # (tenant_id, period_start, period_end). With ``billing_path``
+        # discriminating platform vs BYOK rollups, the same period now
+        # legitimately has TWO rows — we need ``billing_path`` in the
+        # unique key. Drop the old constraint and recreate it including
+        # ``billing_path``.
+        batch_op.drop_constraint("uq_usage_tenant_period", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_usage_tenant_period",
+            ["tenant_id", "period_start", "period_end", "billing_path"],
+        )
 
 
 def downgrade() -> None:
     with op.batch_alter_table("usage_records") as batch_op:
+        # Re-create the old narrower unique constraint before dropping
+        # the column so an empty DB downgrade stays consistent. Any
+        # post-v0.3.0 row carrying ``billing_path='byok'`` that
+        # duplicates a platform row would block this downgrade — which
+        # is the correct behaviour (operator must reconcile usage
+        # rollups first).
+        batch_op.drop_constraint("uq_usage_tenant_period", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_usage_tenant_period",
+            ["tenant_id", "period_start", "period_end"],
+        )
         batch_op.drop_constraint(
             "ck_usage_records_billing_path",
             type_="check",

@@ -62,18 +62,36 @@ def _make_alembic_config(db_url: str) -> Config:
 
 @pytest.fixture
 def pg_engine() -> Iterator[Engine]:
-    """One sync engine per test against a clean schema.
+    """One sync engine per test against a fully-rebuilt schema.
 
-    Drop-all via downgrade-to-base keeps each test isolated. The
-    integration-pg workflow's service container gets reset between job
-    runs, but in-job tests share the DB."""
+    The integration-pg workflow's service container gets reset between
+    job runs, but in-job tests share the DB — and the postgres
+    integration tests that run before this module create their schema
+    via ``Base.metadata.create_all`` (no alembic_version row), so a
+    plain ``alembic downgrade base`` finds nothing to drop and the
+    upgrade explodes on ``CREATE TABLE tenants``.
+
+    Brutally drop every ORM-known table + the bookkeeping row BEFORE
+    the upgrade, so every test in this module sees an empty DB no
+    matter what ran before.
+    """
+    from ocr_to_report.adapters.db import Base  # noqa: PLC0415
+
     assert DB_URL is not None  # guarded by module-level skip
     sync_url = _sync_url(DB_URL)
-    cfg = _make_alembic_config(sync_url)
-    # Reset to a clean state before each test.
-    command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
     engine = create_engine(sync_url, future=True)
+
+    # Step 1: drop every known table (CASCADE handles FKs).
+    Base.metadata.drop_all(engine)
+    # Step 2: drop alembic's own bookkeeping table so the upgrade
+    # restarts from the empty baseline.
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version CASCADE"))
+
+    # Step 3: now alembic can upgrade cleanly.
+    cfg = _make_alembic_config(sync_url)
+    command.upgrade(cfg, "head")
+
     yield engine
     engine.dispose()
 
