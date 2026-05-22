@@ -3,10 +3,10 @@
 | Owner | QuocTran |
 |---|---|
 | Last updated | 2026-05-21 |
-| Current version | `v0.2.0` |
-| Next milestone | `v0.3.0` — Provider choice + BYOK |
+| Current version | `v0.3.0` |
+| Next milestone | `v0.4.0` — Billing + invoicing |
 | Plan for next milestone | TBD (open with `superpowers:brainstorming` when ready). |
-| Most recent plan executed | [`docs/plans/2026-04-29-v0.2.0-tenant-overrides.md`](plans/2026-04-29-v0.2.0-tenant-overrides.md) — all 15 tasks shipped 2026-05-21. |
+| Most recent plan executed | [`docs/plans/2026-05-21-v0.3.0-byok-design.md`](plans/2026-05-21-v0.3.0-byok-design.md) — all 10 tasks shipped 2026-05-21. |
 
 This document maps the full product trajectory from the shipped MVP through
 General Availability. Each row in [§3](#3-version-trajectory) names a
@@ -112,6 +112,28 @@ Full v0.2.0 walkthrough: [`docs/v0.2.0-customization-guide.md`](v0.2.0-customiza
 Plan executed: [`docs/plans/2026-04-29-v0.2.0-tenant-overrides.md`](plans/2026-04-29-v0.2.0-tenant-overrides.md).
 569 Python tests passing + 21 TS SDK tests.
 
+### Shipped — `v0.3.0` (2026-05-21)
+
+Tenant Bring-Your-Own-Key (BYOK) for Anthropic — the first half of
+"Provider choice + BYOK". A tenant with their own Anthropic
+Enterprise contract supplies their API key via Settings → Providers;
+the platform routes their vision calls through that key and tags the
+usage rollup with `billing_path='byok'` so v0.4.0 invoicing can skip
+those rows. Keys ride the same envelope-encryption pattern as the
+webhook signing secrets (per-tenant DEK, never logged, never echoed
+back on read).
+
+YAGNI scope, deliberately: only Anthropic is wired as a real
+provider — the OpenAI / Vertex / Tesseract stub adapters stay stubs
+until v0.7.0 (provider expansion). No model picker either (the SLA
+tier's `primary_model` + `fallback_model` stay authoritative); BYOK
+swaps credentials only. Region pin column lands but isn't consumed
+yet (v0.6.0 / v0.8.0 read it).
+
+Full v0.3.0 walkthrough: [`docs/v0.3.0-byok-guide.md`](v0.3.0-byok-guide.md).
+Plan executed: [`docs/plans/2026-05-21-v0.3.0-byok-design.md`](plans/2026-05-21-v0.3.0-byok-design.md).
+603 Python tests passing + 24 TS SDK tests.
+
 ---
 
 ## 3. Version Trajectory
@@ -156,42 +178,59 @@ product. Each version is independently releasable.
 
 ---
 
-### `v0.3.0` — Provider choice + BYOK
+### `v0.3.0` — BYOK (Anthropic-only)
 
-> Tenants pick the provider+model that fits their cost, latency, or
-> compliance constraints — and supply their own API key when they
-> already have a vendor relationship. Cost reporting splits between
-> "platform-billed" and "tenant-billed" calls.
+> Tenants with an Anthropic Enterprise contract supply their own API
+> key; the platform routes their jobs through it and bills against
+> their account. The *provider-expansion* half (OpenAI, Vertex,
+> Tesseract, regional pinning, model picker) was YAGNI-deferred to
+> v0.7.0.
 
-**User stories**
-- *As an EU tenant, I require all vision calls to go to Vertex AI in
-  europe-west1 — no Anthropic.*
+**Shipped 2026-05-21.**
+
+**User stories shipped**
 - *As a tenant with an Anthropic Enterprise contract, I supply my own
   `ANTHROPIC_API_KEY` and the platform routes my jobs through it.*
+
+**User stories deferred to v0.7.0** (need real OpenAI/Vertex adapters
+or a model picker)
+- *As an EU tenant, I require all vision calls to go to Vertex AI in
+  europe-west1 — no Anthropic.*
 - *As a tenant on Standard, I want Sonnet-only (no Haiku-first) because
   my documents are noisy.*
 
-**Surfaces**
+**Surfaces shipped**
 - DB: new `tenant_provider_credentials` table — `(tenant_id, provider,
-  encrypted_api_key, model_overrides_json, region, active)`. Encrypted
-  with the per-tenant DEK; rotation tracked in audit.
-- Core: `ProviderRouter` accepts a `TenantProviderConfig` ahead of the
-  global router; the SLA tier becomes the *default*, not a hard rule.
-- Adapters: each `*VisionAdapter` accepts an injected key+endpoint at
-  call time (so the same adapter handles both platform and tenant
-  credentials).
-- API: `GET/PUT /v1/tenant/providers` (list + upsert), audit on
-  add/rotate/revoke.
-- Web: Settings → *Providers* tab. Lists configured providers with
-  test-connection button. Adding a new key shows a key-validation
-  call before persisting.
-- Cost: `usage_records.billing_path` ∈ {`platform`, `byok`} so
-  invoicing in v0.4 ignores byok rows.
+  encrypted_api_key, model_overrides, region, active, rotated_at)`.
+  Encrypted with the per-tenant DEK; partial unique index on
+  `(tenant_id, provider) WHERE active = TRUE`; rotation history kept
+  as inactive rows. Also: `usage_records.billing_path` ∈
+  {`platform`, `byok`} so v0.4.0 invoicing can skip byok rows.
+- Adapters: `VisionAdapter.extract(request, *, override_api_key=None)`
+  — Anthropic adapter constructs a one-shot `AsyncAnthropic` per
+  request when the override is set; closes the client when done so
+  BYOK traffic doesn't leak httpx connections.
+- API: `GET/PUT/DELETE /v1/tenant/providers` (list redacted, upsert
+  with `/v1/models` pre-flight validation, soft-disable). Audits:
+  `provider.byok_created` / `byok_rotated` / `byok_invoked` /
+  `byok_revoked`.
+- SDK: `client.providers.list/upsert/delete` (TS + Py).
+- Web: Settings → *Providers* tab (sixth tab). Anthropic row
+  interactive; the other three render as "Coming in v0.7.0".
 
-**Acceptance**
-- Two tenants can run the same transcript on the same SLA tier through
-  *different* providers + models, billed correctly, with audit entries
-  showing key rotation history.
+**Acceptance reached**
+- ☑ Two tenants can run the same transcript through `anthropic` with
+  different API keys; the requests succeed against the respective
+  accounts.
+- ☑ Usage rolls up to separate `platform` / `byok` rows so v0.4.0
+  invoicing can ignore the BYOK rows.
+- ☑ Audit log carries `provider.byok_invoked` / `byok_revoked` for
+  every credential lifecycle event.
+- ☑ Web Settings → Providers tab end-to-end: PUT, GET (redacted),
+  DELETE.
+- ☑ PUT with an invalid Anthropic key returns 400; no row persisted.
+- ☑ All postgres integration tests + schemathesis contract tests
+  pass.
 
 ---
 

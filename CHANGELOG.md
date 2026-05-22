@@ -2,6 +2,103 @@
 
 All notable changes to OCR-to-Report. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows [SemVer](https://semver.org/).
 
+## [0.3.0] — 2026-05-21
+
+Tenant BYOK (Bring-Your-Own-Key) for Anthropic. A tenant with their
+own Anthropic Enterprise contract supplies their API key via Settings
+→ Providers; the platform routes their vision calls through that key
+and tags the usage rollup so v0.4.0 invoicing can skip those rows.
+YAGNI scope: only Anthropic is wired as a real provider — the
+provider-expansion half (OpenAI / Vertex / Tesseract / model picker /
+region pin) deferred to v0.7.0.
+
+### Added
+
+- **`tenant_provider_credentials` table** (alembic 0003). One row per
+  `(tenant_id, provider)` pair, envelope-encrypted with the per-tenant
+  DEK (same crypto pattern as `webhooks.secret_encrypted`). Partial
+  unique index on `WHERE active = TRUE` enforces "exactly one active
+  credential per (tenant, provider)" on postgres; rotation history
+  accumulates as inactive rows carrying `rotated_at`. Carries
+  `model_overrides` (JSONB) and `region` (text) columns ahead of
+  v0.7.0 / v0.6.0 consumption.
+- **`usage_records.billing_path`** column (alembic 0004) ∈
+  `{'platform', 'byok'}` with a CHECK constraint. The rollup key in
+  `UsageRepo.increment` now includes billing_path so platform and
+  BYOK roll up to separate rows.
+- **`VisionAdapter.extract(request, *, override_api_key=None)`**
+  protocol change. The Anthropic adapter constructs a one-shot
+  `AsyncAnthropic` client per request when the override is set,
+  threads it through both the primary attempt and any
+  confidence-gated fallback, and closes the client when done so
+  BYOK traffic doesn't leak httpx connections. Stub adapters
+  (OpenAI / Vertex / Tesseract) accept-and-ignore the kwarg.
+- **`GET / PUT / DELETE /v1/tenant/providers`** endpoints (router
+  `providers.py`). PUT validates the candidate Anthropic key against
+  `/v1/models` (60s in-process result cache); 401/403 → clean HTTP
+  400. PUT for the other three legal provider ids returns 501 with
+  a "shipped in v0.7.0" hint; unknown provider ids return 400/422.
+  DELETE is idempotent (204 even when no active row).
+- **`TenantProviderCredentialRepo`** with `upsert` (encrypt + rotate
+  in single flush), `get_active_for_tenant` (unwrap), `disable`
+  (soft-delete), and `list_for_tenant` (audit / UI view).
+- **`get_active_anthropic_credentials`** request-scoped FastAPI dep
+  (`packages/api/src/.../api/deps.py`). Memoized on `request.state`;
+  decryption / IO failures fall back to platform billing with a
+  WARN log carrying tenant_id only (never the ciphertext or
+  credential_id of an unreadable row).
+- **Audit log actions:** `provider.byok_created`,
+  `provider.byok_rotated`, `provider.byok_invoked`,
+  `provider.byok_revoked`. Each entry carries `credential_id` and
+  (for created/rotated) the last-4 redaction of the key — never
+  the plaintext.
+- **SDK exposure:** `client.providers.list / upsert / delete` on
+  both TS and Python SDKs (sync + async). Same `ProviderId`,
+  `ProviderStatus`, `ProviderUpsertRequest`,
+  `ProvidersListResponse` types.
+- **Web Settings → Providers tab** (sixth tab on `/settings`).
+  Anthropic row interactive; OpenAI / Vertex / Tesseract render as
+  disabled "Coming in v0.7.0" placeholders. Inline password-typed
+  form for the API key; AlertDialog confirmation before revoke;
+  toast carries the last-4 redaction on save for confirmation.
+
+### Changed
+
+- `UsageRepo.increment` and `UsageRepo.get_period` gain a
+  `billing_path` keyword (default `'platform'`) so platform and
+  BYOK usage roll up to separate rows. Every existing call site
+  works unchanged because of the default; the worker batch
+  handler updates to pass `billing_path='platform'` explicitly for
+  call-site readability.
+
+### Security
+
+- The plaintext API key never crosses the wire after upload: the
+  server REDACTS to `sk-ant-…XXXX` (PUT response) or to a fixed
+  placeholder `sk-ant-…••••` (GET list). The audit log never
+  records the key itself.
+- AES-GCM `associated_data` binds each ciphertext to its
+  `(tenant_id, provider)` pair so a cross-tenant or
+  cross-provider blob substitution attempts fail at the auth tag.
+- Decryption failures (DEK rotation, ciphertext corruption) fall
+  back to platform billing rather than 500 — a broken credential
+  row never breaks the request path.
+
+### Migration notes
+
+- Two new alembic revisions: `0003_tenant_provider_credentials`
+  and `0004_usage_records_billing_path`. Running `alembic upgrade
+  head` on an existing v0.2.x deploy backfills existing
+  `usage_records` rows with `billing_path = 'platform'` via the
+  column's server default.
+- No breaking API changes. Tenants without BYOK rows behave
+  identically to v0.2.x (`billing_path='platform'`, no audit
+  entries).
+
+Full walkthrough: [`docs/v0.3.0-byok-guide.md`](docs/v0.3.0-byok-guide.md).
+Plan executed: [`docs/plans/2026-05-21-v0.3.0-byok-design.md`](docs/plans/2026-05-21-v0.3.0-byok-design.md).
+603 Python tests passing + 24 TS SDK tests.
+
 ## [0.2.1] — 2026-05-21
 
 Security patch release. Fixes two findings surfaced by an internal
