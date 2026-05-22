@@ -27,7 +27,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
@@ -83,7 +83,7 @@ class TenantProviderCredentialRepo:
         provider: str,
         plaintext_api_key: str,
         dek: bytes,
-        model_overrides: dict[str, object] | None = None,
+        model_overrides: dict[str, Any] | None = None,
         region: str | None = None,
     ) -> TenantProviderCredential:
         """Create or rotate a credential.

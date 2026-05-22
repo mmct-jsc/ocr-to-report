@@ -529,7 +529,12 @@ async def get_active_anthropic_credentials(
     """
     cached = getattr(request.state, "byok_credentials_anthropic", _SENTINEL_MISS)
     if cached is not _SENTINEL_MISS:
-        return cached  # type: ignore[no-any-return]
+        # ``cached`` was set by a previous invocation of this same dep
+        # earlier in the request; its runtime type is ``TenantCredential
+        # | None``. The sentinel object never leaks past this branch.
+        from typing import cast  # noqa: PLC0415
+
+        return cast("TenantCredential | None", cached)
 
     creds_repo = TenantProviderCredentialRepo(repos.session, repos.encryptor)
     try:

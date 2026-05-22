@@ -292,7 +292,10 @@ async def upsert_provider(
     await repos.session.commit()
 
     return ProviderStatus(
-        provider=row.provider,  # type: ignore[arg-type]
+        # Pydantic coerces the str → ``ProviderId`` literal at the model
+        # boundary; ``provider`` was the path-param Literal we validated
+        # at the top of this handler so the value is known-good.
+        provider=row.provider,
         active=row.active,
         api_key_redacted=_redact_key(body.api_key),
         region=row.region,

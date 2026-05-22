@@ -95,7 +95,8 @@ async def seeded(settings: Settings, db_setup: None) -> dict[str, Any]:
 class _StubVisionAdapter:
     name = VisionProvider.MOCK
 
-    async def extract(self, _request: Any) -> Any:
+    async def extract(self, _request: Any, *, override_api_key: str | None = None) -> Any:
+        del override_api_key  # v0.3.0 BYOK threading; stub doesn't care
         raise NotImplementedError
 
     async def aclose(self) -> None:

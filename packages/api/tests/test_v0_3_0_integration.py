@@ -315,7 +315,7 @@ def _run_job(client: TestClient, api_key: str) -> dict[str, Any]:
         },
     )
     assert r.status_code == 200, r.text
-    body = r.json()
+    body: dict[str, Any] = r.json()
     assert body["job"]["status"] == "succeeded", body
     return body
 
