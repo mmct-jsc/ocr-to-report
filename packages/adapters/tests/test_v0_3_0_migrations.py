@@ -226,8 +226,12 @@ def test_usage_records_billing_path_check_constraint(pg_engine: Engine) -> None:
 
         _insert_usage("platform")
         _insert_usage("byok")
+        # CHECK constraint rejects values outside the legal set. The
+        # column is ``String(16)`` so we use a SHORT illegal value here
+        # — too-long strings would hit ``StringDataRightTruncation``
+        # before the CHECK fires and obscure what we're proving.
         with pytest.raises(IntegrityError):
-            _insert_usage("not-a-billing-path")
+            _insert_usage("bogus")
 
 
 def test_usage_records_billing_path_default_is_platform(pg_engine: Engine) -> None:

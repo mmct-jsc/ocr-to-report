@@ -303,6 +303,26 @@ async def _read_usage_billing_paths(
         await engine.dispose()
 
 
+def _bypass_result_cache(client: TestClient) -> None:
+    """Clear the shared in-memory result cache so the next request
+    actually invokes the adapter.
+
+    ``InMemoryAsyncCache`` is keyed on
+    ``sha256(image) || provider || schema_version`` — same image bytes
+    across phases hit the SAME cache key, so phase 3's job otherwise
+    short-circuits to phase 1's cached extraction and the adapter is
+    never re-called (and ``adapter.calls[-1]`` still holds phase 1's
+    ``override_api_key=None``). The unit-level ``test_byok_e2e.py``
+    avoided this by spinning up a fresh ``TestClient`` per phase; this
+    integration test keeps one client to keep the postgres transactions
+    consistent, so we surgically clear the cache instead.
+    """
+    import asyncio  # noqa: PLC0415
+
+    state = client.app.state.app_state  # type: ignore[attr-defined]
+    asyncio.run(state.result_cache.clear())
+
+
 def _run_job(client: TestClient, api_key: str) -> dict[str, Any]:
     """Drive one POST /v1/transcripts; return the parsed response."""
     r = client.post(
@@ -383,6 +403,9 @@ def test_full_v0_3_0_byok_flow_against_postgres(
         assert "provider.byok_created" in actions, actions
 
         # ─── 3. Post-BYOK: byok-billed, override threaded ─────────────
+        # Clear the shared result cache so the adapter is actually
+        # re-invoked for this job (same image bytes as phase 1).
+        _bypass_result_cache(client)
         _run_job(client, api_key)
         assert adapter.calls[-1]["override_api_key"] == "sk-ant-postgres-byok-XYZ1", (
             "BYOK plaintext key did not reach the adapter — the "
@@ -405,6 +428,7 @@ def test_full_v0_3_0_byok_flow_against_postgres(
         assert "provider.byok_revoked" in actions, actions
 
         # ─── 5. Post-revoke: platform-billed again ────────────────────
+        _bypass_result_cache(client)
         _run_job(client, api_key)
         assert adapter.calls[-1]["override_api_key"] is None, (
             "after DELETE, the dep should return None and the adapter "
