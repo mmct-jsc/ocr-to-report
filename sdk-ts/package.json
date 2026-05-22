@@ -1,6 +1,6 @@
 {
   "name": "@ocr-to-report/sdk",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "TypeScript SDK for OCR-to-Report — typed HTTP client for the v1 REST API.",
   "type": "module",
   "main": "./dist/index.js",
