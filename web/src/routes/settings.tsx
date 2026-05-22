@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Server,
   Settings as SettingsIcon,
+  ShieldCheck,
   Sparkles,
   Workflow,
 } from "lucide-react";
@@ -26,11 +27,18 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsList, TabsPanel, TabsTrigger } from "@/components/ui/tabs";
 import { PipelineTab } from "@/components/settings-tabs/pipeline-tab";
+import { ProvidersTab } from "@/components/settings-tabs/providers-tab";
 import { SlaTab } from "@/components/settings-tabs/sla-tab";
 import { TemplatesTab } from "@/components/settings-tabs/templates-tab";
 import { VocabularyTab } from "@/components/settings-tabs/vocabulary-tab";
 
-type SettingsTabId = "general" | "pipeline" | "sla" | "templates" | "vocabulary";
+type SettingsTabId =
+  | "general"
+  | "pipeline"
+  | "sla"
+  | "templates"
+  | "vocabulary"
+  | "providers";
 
 export function SettingsRoute() {
   const [tab, setTab] = useState<SettingsTabId>("general");
@@ -73,6 +81,11 @@ export function SettingsRoute() {
               <Sparkles size={14} aria-hidden /> Vocabulary
             </span>
           </TabsTrigger>
+          <TabsTrigger value="providers">
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck size={14} aria-hidden /> Providers
+            </span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsPanel value="general">
@@ -89,6 +102,9 @@ export function SettingsRoute() {
         </TabsPanel>
         <TabsPanel value="vocabulary">
           <VocabularyTab />
+        </TabsPanel>
+        <TabsPanel value="providers">
+          <ProvidersTab />
         </TabsPanel>
       </Tabs>
     </>
