@@ -253,36 +253,54 @@ def _make_client(settings: Settings, *, adapter: _RecordingAdapter) -> TestClien
     return client
 
 
-async def _read_audit_actions(engine: AsyncEngine, tenant_id: uuid.UUID) -> list[str]:
-    async with engine.connect() as conn:
-        await conn.execute(
-            text("SELECT set_config('app.tenant_id', :tid, true)"),
-            {"tid": str(tenant_id)},
-        )
-        result = await conn.execute(
-            text("SELECT action FROM audit_log WHERE tenant_id = :tid ORDER BY ts"),
-            {"tid": str(tenant_id)},
-        )
-        return [row[0] for row in result.all()]
+async def _read_audit_actions(tenant_id: uuid.UUID) -> list[str]:
+    """Open a fresh engine per call so each ``asyncio.run`` gets its own
+    loop-bound pool. The ``pg_clean_engine`` fixture is bound to
+    pytest-asyncio's loop; reusing it inside a fresh ``asyncio.run``
+    raises "Task attached to a different loop" on asyncpg.
+    """
+    assert DB_URL is not None
+    engine = create_async_engine(DB_URL, future=True, echo=False)
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.tenant_id', :tid, true)"),
+                {"tid": str(tenant_id)},
+            )
+            result = await conn.execute(
+                text("SELECT action FROM audit_log WHERE tenant_id = :tid ORDER BY ts"),
+                {"tid": str(tenant_id)},
+            )
+            return [row[0] for row in result.all()]
+    finally:
+        await engine.dispose()
 
 
 async def _read_usage_billing_paths(
-    engine: AsyncEngine, tenant_id: uuid.UUID
+    tenant_id: uuid.UUID,
 ) -> list[tuple[str, int]]:
-    """Return ``[(billing_path, transcripts_processed), ...]`` for the tenant."""
-    async with engine.connect() as conn:
-        await conn.execute(
-            text("SELECT set_config('app.tenant_id', :tid, true)"),
-            {"tid": str(tenant_id)},
-        )
-        result = await conn.execute(
-            text(
-                "SELECT billing_path, transcripts_processed FROM usage_records "
-                "WHERE tenant_id = :tid ORDER BY billing_path"
-            ),
-            {"tid": str(tenant_id)},
-        )
-        return [(row[0], row[1]) for row in result.all()]
+    """Return ``[(billing_path, transcripts_processed), ...]`` for the tenant.
+
+    Fresh engine per call — see ``_read_audit_actions`` for why.
+    """
+    assert DB_URL is not None
+    engine = create_async_engine(DB_URL, future=True, echo=False)
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("SELECT set_config('app.tenant_id', :tid, true)"),
+                {"tid": str(tenant_id)},
+            )
+            result = await conn.execute(
+                text(
+                    "SELECT billing_path, transcripts_processed FROM usage_records "
+                    "WHERE tenant_id = :tid ORDER BY billing_path"
+                ),
+                {"tid": str(tenant_id)},
+            )
+            return [(row[0], row[1]) for row in result.all()]
+    finally:
+        await engine.dispose()
 
 
 def _run_job(client: TestClient, api_key: str) -> dict[str, Any]:
@@ -308,9 +326,16 @@ def _run_job(client: TestClient, api_key: str) -> dict[str, Any]:
 def test_full_v0_3_0_byok_flow_against_postgres(
     settings: Settings,
     seeded: dict[str, Any],
-    pg_clean_engine: AsyncEngine,
 ) -> None:
-    """Walks the no-BYOK → set → revoke → no-BYOK lifecycle on postgres."""
+    """Walks the no-BYOK → set → revoke → no-BYOK lifecycle on postgres.
+
+    ``seeded`` transitively depends on ``pg_clean_engine`` so the
+    drop+create-schema side-effect runs before the test body; we do
+    NOT take the engine directly as a parameter — every read helper
+    opens its own engine inside ``asyncio.run`` to keep the asyncpg
+    pool bound to the right event loop. Sharing the fixture engine
+    across loops raises "Task attached to a different loop".
+    """
     import asyncio  # noqa: PLC0415
 
     adapter = _RecordingAdapter()
@@ -326,11 +351,11 @@ def test_full_v0_3_0_byok_flow_against_postgres(
             "fresh tenant should not have a BYOK key threaded to the adapter"
         )
 
-        usage_rows = asyncio.run(_read_usage_billing_paths(pg_clean_engine, tenant_id))
+        usage_rows = asyncio.run(_read_usage_billing_paths(tenant_id))
         assert usage_rows == [("platform", 1)], (
             f"expected one platform-billed usage row; saw {usage_rows}"
         )
-        actions = asyncio.run(_read_audit_actions(pg_clean_engine, tenant_id))
+        actions = asyncio.run(_read_audit_actions(tenant_id))
         assert "provider.byok_invoked" not in actions, actions
 
         # ─── 2. PUT a BYOK key (Anthropic validation mocked) ──────────
@@ -354,7 +379,7 @@ def test_full_v0_3_0_byok_flow_against_postgres(
         assert put_body["api_key_redacted"] == "sk-ant-…XYZ1"
         assert put_body["active"] is True
 
-        actions = asyncio.run(_read_audit_actions(pg_clean_engine, tenant_id))
+        actions = asyncio.run(_read_audit_actions(tenant_id))
         assert "provider.byok_created" in actions, actions
 
         # ─── 3. Post-BYOK: byok-billed, override threaded ─────────────
@@ -364,19 +389,19 @@ def test_full_v0_3_0_byok_flow_against_postgres(
             "envelope-encrypt/decrypt round-trip broke on postgres"
         )
 
-        usage_rows = asyncio.run(_read_usage_billing_paths(pg_clean_engine, tenant_id))
+        usage_rows = asyncio.run(_read_usage_billing_paths(tenant_id))
         # Two rollup rows now: platform=1 from step 1, byok=1 from step 3.
         assert ("platform", 1) in usage_rows, usage_rows
         assert ("byok", 1) in usage_rows, usage_rows
 
-        actions = asyncio.run(_read_audit_actions(pg_clean_engine, tenant_id))
+        actions = asyncio.run(_read_audit_actions(tenant_id))
         assert "provider.byok_invoked" in actions, actions
 
         # ─── 4. DELETE the credential → audit + platform fallback ────
         delete = client.delete("/v1/tenant/providers/anthropic", headers=headers)
         assert delete.status_code == 204, delete.text
 
-        actions = asyncio.run(_read_audit_actions(pg_clean_engine, tenant_id))
+        actions = asyncio.run(_read_audit_actions(tenant_id))
         assert "provider.byok_revoked" in actions, actions
 
         # ─── 5. Post-revoke: platform-billed again ────────────────────
@@ -387,7 +412,7 @@ def test_full_v0_3_0_byok_flow_against_postgres(
             f"{adapter.calls[-1]['override_api_key']!r}"
         )
 
-        usage_rows = asyncio.run(_read_usage_billing_paths(pg_clean_engine, tenant_id))
+        usage_rows = asyncio.run(_read_usage_billing_paths(tenant_id))
         # platform=2 now (step 1 + step 5); byok=1 still (step 3).
         platform_count = next((n for p, n in usage_rows if p == "platform"), 0)
         byok_count = next((n for p, n in usage_rows if p == "byok"), 0)

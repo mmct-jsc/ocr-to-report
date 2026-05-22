@@ -45,10 +45,12 @@ if not DB_URL or not DB_URL.startswith("postgresql"):
 
 
 # asyncpg is the default driver in our normal sessions, but alembic uses
-# a sync engine internally — strip the +asyncpg suffix so the same env
-# var works for both contexts.
+# a sync engine internally. Swap to psycopg3 (``postgresql+psycopg://``)
+# which ships in ``packages/adapters/pyproject.toml`` — defaulting to
+# the bare ``postgresql://`` would point SQLAlchemy at psycopg2, which
+# is NOT installed in CI.
 def _sync_url(url: str) -> str:
-    return url.replace("postgresql+asyncpg://", "postgresql://")
+    return url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
 
 
 def _make_alembic_config(db_url: str) -> Config:
